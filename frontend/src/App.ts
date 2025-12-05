@@ -325,7 +325,7 @@ export class App {
         return `
             <div id="not-approved-modal" class="modal">
                 <div class="modal-content" style="max-width: 450px; text-align: center;">
-                    <div class="modal-header" style="justify-content: center;">
+                    <div class="modal-header">
                         <h2 style="color: #ff9800;">Account Not Approved</h2>
                         <button class="close-btn" id="close-not-approved-modal">&times;</button>
                     </div>
@@ -379,7 +379,7 @@ export class App {
         return `
             <div id="one-space-limit-modal" class="modal">
                 <div class="modal-content" style="max-width: 400px; text-align: center;">
-                    <div class="modal-header" style="justify-content: center;">
+                    <div class="modal-header">
                         <h2 style="color: #ff9800;">One Space Limit</h2>
                         <button class="close-btn" id="close-one-space-limit-modal">&times;</button>
                     </div>
@@ -484,6 +484,14 @@ export class App {
         // Space booking
         document.querySelectorAll('.space-card.available, .space-card.available-not-approved, .space-card.available-disabled').forEach(card => {
             card.addEventListener('click', async (e) => {
+                // Don't trigger if any modal is active
+                const activeModal = document.querySelector('.modal.active');
+                if (activeModal) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    return;
+                }
+                
                 // Don't trigger if clicking on a button
                 if ((e.target as HTMLElement).tagName === 'BUTTON') {
                     return;
@@ -545,8 +553,18 @@ export class App {
             bookingConfirmationModal?.classList.remove('active');
         });
 
-        confirmBookingBtn?.addEventListener('click', () => {
-            this.confirmBooking();
+        confirmBookingBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            // Prevent multiple clicks
+            if ((confirmBookingBtn as HTMLButtonElement).disabled) {
+                return;
+            }
+            (confirmBookingBtn as HTMLButtonElement).disabled = true;
+            this.confirmBooking().finally(() => {
+                (confirmBookingBtn as HTMLButtonElement).disabled = false;
+            });
         });
 
         // Close modal when clicking outside
@@ -570,8 +588,18 @@ export class App {
             cancelBookingConfirmationModal?.classList.remove('active');
         });
 
-        confirmCancelBookingBtn?.addEventListener('click', () => {
-            this.confirmCancelBooking();
+        confirmCancelBookingBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            // Prevent multiple clicks
+            if ((confirmCancelBookingBtn as HTMLButtonElement).disabled) {
+                return;
+            }
+            (confirmCancelBookingBtn as HTMLButtonElement).disabled = true;
+            this.confirmCancelBooking().finally(() => {
+                (confirmCancelBookingBtn as HTMLButtonElement).disabled = false;
+            });
         });
 
         // Close modal when clicking outside
@@ -810,8 +838,15 @@ export class App {
         const spaceId = (modal as any).pendingSpaceId;
         if (!spaceId) return;
 
-        // Close modal
+        // Close confirmation modal first
         modal.classList.remove('active');
+        
+        // Close any other active modals to prevent conflicts
+        document.querySelectorAll('.modal.active').forEach(m => {
+            if (m.id !== 'booking-confirmation-modal') {
+                (m as HTMLElement).classList.remove('active');
+            }
+        });
 
         try {
             await spaceApi.bookSpace(this.currentEvent.id, spaceId);
@@ -821,6 +856,11 @@ export class App {
             if (existingModal) {
                 existingModal.remove();
             }
+            
+            // Ensure no other modals are active
+            document.querySelectorAll('.modal.active').forEach(m => {
+                (m as HTMLElement).classList.remove('active');
+            });
             
             // Show success message
             const successModal = document.createElement('div');
@@ -848,7 +888,15 @@ export class App {
             okBtn?.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                e.stopImmediatePropagation();
                 closeSuccessModal();
+                
+                // Now that modal is closed, re-render to update the UI
+                this.render();
+                this.attachEventListeners();
+                
+                // Prevent any further event handling
+                return false;
             }, { once: true });
             
             // Prevent modal from closing when clicking inside the modal content
@@ -861,17 +909,29 @@ export class App {
             successModal.addEventListener('click', (e) => {
                 if (e.target === successModal) {
                     closeSuccessModal();
+                    // Re-render when modal is closed via backdrop click
+                    this.render();
+                    this.attachEventListeners();
                 }
             });
 
             // Reload user details to update bookedSpacesCount
             await this.loadUserDetails();
             
-            // Reload event and re-render to update space availability
+            // Reload event data (but don't re-render yet - wait for user to close success modal)
             await this.loadEvent();
-            this.render();
-            this.attachEventListeners();
         } catch (error: any) {
+            // Ensure no success modal is shown on error
+            const existingSuccessModal = document.getElementById('booking-success-modal');
+            if (existingSuccessModal) {
+                existingSuccessModal.remove();
+            }
+            
+            // Close any other active modals
+            document.querySelectorAll('.modal.active').forEach(m => {
+                (m as HTMLElement).classList.remove('active');
+            });
+            
             const errorMsg = error.response?.data?.error || 'Failed to book space. Please try again.';
             
             // Check if it's a non-approved user error
@@ -937,22 +997,44 @@ export class App {
 
     private async confirmCancelBooking() {
         const modal = document.getElementById('cancel-booking-confirmation-modal');
-        if (!modal) return;
+        if (!modal) {
+            console.error('Cancel booking confirmation modal not found');
+            return;
+        }
 
         const spaceId = (modal as any).pendingSpaceId;
-        if (!spaceId) return;
+        if (!spaceId) {
+            console.error('Space ID not found in modal:', modal);
+            return;
+        }
+        
+        console.log('Cancelling booking for spaceId:', spaceId);
 
-        // Close modal
+        // Close confirmation modal first
         modal.classList.remove('active');
+        
+        // Close any other active modals to prevent conflicts
+        document.querySelectorAll('.modal.active').forEach(m => {
+            if (m.id !== 'cancel-booking-confirmation-modal') {
+                (m as HTMLElement).classList.remove('active');
+            }
+        });
 
         try {
+            console.log('Calling spaceApi.cancelBooking with spaceId:', spaceId);
             await spaceApi.cancelBooking(spaceId);
+            console.log('Cancel booking successful');
             
             // Remove any existing cancel success modal first
             const existingModal = document.getElementById('cancel-booking-success-modal');
             if (existingModal) {
                 existingModal.remove();
             }
+            
+            // Ensure no other modals are active
+            document.querySelectorAll('.modal.active').forEach(m => {
+                (m as HTMLElement).classList.remove('active');
+            });
             
             // Show success message
             const successModal = document.createElement('div');
@@ -980,7 +1062,15 @@ export class App {
             okBtn?.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                e.stopImmediatePropagation();
                 closeSuccessModal();
+                
+                // Now that modal is closed, re-render to update the UI
+                this.render();
+                this.attachEventListeners();
+                
+                // Prevent any further event handling
+                return false;
             }, { once: true });
             
             // Prevent modal from closing when clicking inside the modal content
@@ -993,18 +1083,35 @@ export class App {
             successModal.addEventListener('click', (e) => {
                 if (e.target === successModal) {
                     closeSuccessModal();
+                    // Re-render when modal is closed via backdrop click
+                    this.render();
+                    this.attachEventListeners();
                 }
             });
 
             // Reload user details to update bookedSpacesCount
             await this.loadUserDetails();
             
-            // Reload event and re-render to update space availability
+            // Reload event data (but don't re-render yet - wait for user to close success modal)
             await this.loadEvent();
-            this.render();
-            this.attachEventListeners();
         } catch (error: any) {
-            const errorMsg = error.response?.data?.error || 'Failed to cancel booking. Please try again.';
+            // Log the error for debugging
+            console.error('Cancel booking error:', error);
+            console.error('Error response:', error.response);
+            console.error('Error message:', error.message);
+            
+            // Ensure no success modal is shown on error
+            const existingSuccessModal = document.getElementById('cancel-booking-success-modal');
+            if (existingSuccessModal) {
+                existingSuccessModal.remove();
+            }
+            
+            // Close any other active modals
+            document.querySelectorAll('.modal.active').forEach(m => {
+                (m as HTMLElement).classList.remove('active');
+            });
+            
+            const errorMsg = error.response?.data?.error || error.message || 'Failed to cancel booking. Please try again.';
             // Show generic error modal
             const genericErrorModal = document.getElementById('generic-error-modal');
             const messageElement = document.getElementById('generic-error-message');

@@ -56,10 +56,18 @@ public class SpaceService {
             throw new IllegalArgumentException("Space ID cannot be null");
         }
         
-        Space space = spaceRepository.findById(spaceId)
+        // Fetch space with user eagerly loaded to avoid lazy loading issues
+        Space space = spaceRepository.findByIdWithUser(spaceId)
             .orElseThrow(() -> new RuntimeException("Space not found"));
         
-        if (space.getUser() == null || !space.getUser().getId().equals(user.getId())) {
+        // Check if space is booked
+        if (space.getUser() == null) {
+            throw new RuntimeException("Space is not booked");
+        }
+        
+        // Check if the booking belongs to this user
+        Long spaceUserId = space.getUser().getId();
+        if (!spaceUserId.equals(user.getId())) {
             throw new RuntimeException("Space is not booked by this user");
         }
         
