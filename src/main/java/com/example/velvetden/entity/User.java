@@ -48,6 +48,9 @@ public class User {
     private String verificationNotes; // Admin notes about verification
     
     @Column(nullable = false)
+    private Boolean isAdmin = false; // Admin flag
+    
+    @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
     
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)

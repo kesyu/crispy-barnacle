@@ -528,9 +528,9 @@ export class App {
         // Space booking
         document.querySelectorAll('.space-card.available, .space-card.available-not-approved, .space-card.available-disabled').forEach(card => {
             card.addEventListener('click', async (e) => {
-                // Don't trigger if a blocking modal is active (confirmation modals or login modal)
+                // Don't trigger if a blocking modal is active (confirmation modals, login, or registration)
                 // Only block interactive modals, not informational ones that can be dismissed
-                const blockingModalIds = ['booking-confirmation-modal', 'cancel-booking-confirmation-modal', 'login-modal'];
+                const blockingModalIds = ['booking-confirmation-modal', 'cancel-booking-confirmation-modal', 'login-modal', 'registration-modal'];
                 const activeBlockingModal = blockingModalIds.some(id => {
                     const modal = document.getElementById(id);
                     return modal?.classList.contains('active');

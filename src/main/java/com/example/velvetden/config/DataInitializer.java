@@ -113,6 +113,31 @@ public class DataInitializer implements CommandLineRunner {
         User savedInReview = userRepository.save(inReviewUser);
         logger.info("{} in review user with ID: {}", 
             isInReviewNew ? "Created" : "Updated", savedInReview.getId());
+        
+        // Create or update admin user
+        User adminUser = userRepository.findByEmail("admin@velvetden.com").orElse(new User());
+        boolean isAdminNew = adminUser.getId() == null;
+        
+        if (isAdminNew) {
+            logger.info("Creating admin user: admin@velvetden.com");
+            adminUser.setEmail("admin@velvetden.com");
+            adminUser.setCreatedAt(LocalDateTime.now());
+        } else {
+            logger.info("Updating admin user: admin@velvetden.com");
+        }
+        
+        // Always set/update password to ensure it's correct
+        String adminEncodedPassword = passwordEncoder.encode("admin123");
+        adminUser.setPassword(adminEncodedPassword);
+        adminUser.setFirstName("Admin");
+        adminUser.setLastName("User");
+        adminUser.setStatus(User.UserStatus.APPROVED);
+        adminUser.setIsAdmin(true);
+        adminUser.setVerificationImagePath(null); // Admin doesn't need verification
+        
+        User savedAdmin = userRepository.save(adminUser);
+        logger.info("{} admin user with ID: {} and email: {}", 
+            isAdminNew ? "Created" : "Updated", savedAdmin.getId(), savedAdmin.getEmail());
     }
 }
 
