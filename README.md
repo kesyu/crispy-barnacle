@@ -1,4 +1,4 @@
-# Crispy Barnacle - Group Event Booking System
+# The Velvet Den - Group Event Booking System
 
 A Spring Boot web application with Java backend and TypeScript frontend for managing group events with space reservations.
 
@@ -29,8 +29,8 @@ A Spring Boot web application with Java backend and TypeScript frontend for mana
 ## Project Structure
 
 ```
-crispy-barnacle/
-├── src/main/java/com/example/crispybarnacle/
+the-velvet-den/
+├── src/main/java/com/example/velvetden/
 │   ├── entity/          # JPA entities (Event, Space, User, RegistrationRequest)
 │   ├── repository/      # Spring Data repositories
 │   ├── service/         # Business logic services

@@ -14,7 +14,7 @@
 
 ### 3. ✅ Compilation Errors
 - **Problem 1**: Missing import for `User` class in `JwtAuthenticationFilter`
-- **Solution**: Added `import com.example.crispybarnacle.entity.User;`
+- **Solution**: Added `import com.example.velvetden.entity.User;`
 - **Status**: Fixed
 
 - **Problem 2**: JWT API incompatibility with JJWT 0.12.3
@@ -43,12 +43,12 @@
 
 1. **Start the backend**:
    ```bash
-   cd /Users/eva.fanaczannebalazsfalvi/CursorProjects/crispy-barnacle
+   cd /Users/eva.fanaczannebalazsfalvi/CursorProjects/the-velvet-den
    ./gradlew bootRun --args='--spring.profiles.active=dev'
    ```
 
 2. **Check if it starts successfully** - Look for:
-   - "Started CrispyBarnacleApplication" message
+   - "Started VelvetDenApplication" message
    - No exceptions in the logs
    - Port 8080 listening
 
@@ -68,10 +68,10 @@ If the backend still doesn't start, check for:
 
 ## Files Modified
 
-- `src/main/java/com/example/crispybarnacle/security/JwtAuthenticationFilter.java`
-- `src/main/java/com/example/crispybarnacle/service/JwtService.java`
-- `src/main/java/com/example/crispybarnacle/service/UserService.java`
-- `src/main/java/com/example/crispybarnacle/controller/AuthController.java`
+- `src/main/java/com/example/velvetden/security/JwtAuthenticationFilter.java`
+- `src/main/java/com/example/velvetden/service/JwtService.java`
+- `src/main/java/com/example/velvetden/service/UserService.java`
+- `src/main/java/com/example/velvetden/controller/AuthController.java`
 - `.tool-versions` (created)
 - `gradle/wrapper/gradle-wrapper.jar` (created)
 - `gradle/wrapper/gradle-wrapper.properties` (created)

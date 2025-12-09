@@ -46,7 +46,7 @@ export class App {
             app.innerHTML = `
                 <div class="container">
                     <div class="header">
-                        <h1>🐕 Crispy Barnacle</h1>
+                        <h1>🐕 The Velvet Den</h1>
                         <p>Join our next group event!</p>
                     </div>
 
@@ -484,9 +484,14 @@ export class App {
         // Space booking
         document.querySelectorAll('.space-card.available, .space-card.available-not-approved, .space-card.available-disabled').forEach(card => {
             card.addEventListener('click', async (e) => {
-                // Don't trigger if any modal is active
-                const activeModal = document.querySelector('.modal.active');
-                if (activeModal) {
+                // Don't trigger if a blocking modal is active (confirmation modals or login modal)
+                // Only block interactive modals, not informational ones that can be dismissed
+                const blockingModalIds = ['booking-confirmation-modal', 'cancel-booking-confirmation-modal', 'login-modal'];
+                const activeBlockingModal = blockingModalIds.some(id => {
+                    const modal = document.getElementById(id);
+                    return modal?.classList.contains('active');
+                });
+                if (activeBlockingModal) {
                     e.stopPropagation();
                     e.preventDefault();
                     return;
@@ -998,17 +1003,13 @@ export class App {
     private async confirmCancelBooking() {
         const modal = document.getElementById('cancel-booking-confirmation-modal');
         if (!modal) {
-            console.error('Cancel booking confirmation modal not found');
             return;
         }
 
         const spaceId = (modal as any).pendingSpaceId;
         if (!spaceId) {
-            console.error('Space ID not found in modal:', modal);
             return;
         }
-        
-        console.log('Cancelling booking for spaceId:', spaceId);
 
         // Close confirmation modal first
         modal.classList.remove('active');
@@ -1021,9 +1022,7 @@ export class App {
         });
 
         try {
-            console.log('Calling spaceApi.cancelBooking with spaceId:', spaceId);
             await spaceApi.cancelBooking(spaceId);
-            console.log('Cancel booking successful');
             
             // Remove any existing cancel success modal first
             const existingModal = document.getElementById('cancel-booking-success-modal');
@@ -1095,11 +1094,6 @@ export class App {
             // Reload event data (but don't re-render yet - wait for user to close success modal)
             await this.loadEvent();
         } catch (error: any) {
-            // Log the error for debugging
-            console.error('Cancel booking error:', error);
-            console.error('Error response:', error.response);
-            console.error('Error message:', error.message);
-            
             // Ensure no success modal is shown on error
             const existingSuccessModal = document.getElementById('cancel-booking-success-modal');
             if (existingSuccessModal) {

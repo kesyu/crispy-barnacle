@@ -29,9 +29,9 @@ Download and install from: https://www.postgresql.org/download/windows/
 
 ### Docker (Recommended for Development)
 ```bash
-docker run --name crispy-barnacle-db \
+docker run --name velvet-den-db \
   -e POSTGRES_PASSWORD=your-password \
-  -e POSTGRES_DB=crispybarnacle \
+  -e POSTGRES_DB=velvetden \
   -p 5432:5432 \
   -d postgres:15
 ```
@@ -44,18 +44,18 @@ docker run --name crispy-barnacle-db \
 psql -U postgres
 
 # Create database
-CREATE DATABASE crispybarnacle;
+CREATE DATABASE velvetden;
 
 # Create a dedicated user (optional but recommended)
-CREATE USER crispyuser WITH PASSWORD 'your-secure-password';
-GRANT ALL PRIVILEGES ON DATABASE crispybarnacle TO crispyuser;
+CREATE USER velvetuser WITH PASSWORD 'your-secure-password';
+GRANT ALL PRIVILEGES ON DATABASE velvetden TO velvetuser;
 \q
 ```
 
 2. **Update application.properties:**
 ```properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/crispybarnacle
-spring.datasource.username=crispyuser
+spring.datasource.url=jdbc:postgresql://localhost:5432/velvetden
+spring.datasource.username=velvetuser
 spring.datasource.password=your-secure-password
 ```
 
@@ -87,7 +87,7 @@ runtimeOnly 'com.mysql:mysql-connector-j'
 
 2. Update `application.properties`:
 ```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/crispybarnacle?useSSL=false&serverTimezone=UTC
+spring.datasource.url=jdbc:mysql://localhost:3306/velvetden?useSSL=false&serverTimezone=UTC
 spring.datasource.username=root
 spring.datasource.password=your-password
 spring.jpa.database-platform=org.hibernate.dialect.MySQLDialect
@@ -113,7 +113,7 @@ runtimeOnly 'org.xerial:sqlite-jdbc'
 
 2. Update `application.properties`:
 ```properties
-spring.datasource.url=jdbc:sqlite:./data/crispybarnacle.db
+spring.datasource.url=jdbc:sqlite:./data/velvetden.db
 spring.jpa.database-platform=org.hibernate.dialect.SQLiteDialect
 ```
 
@@ -135,7 +135,7 @@ spring.jpa.database-platform=org.hibernate.dialect.SQLiteDialect
 
 1. **Use Environment Variables** for sensitive data:
 ```properties
-spring.datasource.url=${DATABASE_URL:jdbc:postgresql://localhost:5432/crispybarnacle}
+spring.datasource.url=${DATABASE_URL:jdbc:postgresql://localhost:5432/velvetden}
 spring.datasource.username=${DATABASE_USERNAME:postgres}
 spring.datasource.password=${DATABASE_PASSWORD}
 ```
