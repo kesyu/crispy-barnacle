@@ -7,6 +7,7 @@ export class App {
     private currentPage: 'home' | 'profile' = 'home';
     private userDetails: UserDetailsDTO | null = null;
     private pendingBookingSpaceId: number | null = null; // Store spaceId when user clicks to book while not logged in
+    private isRegistering: boolean = false; // Prevent duplicate registration submissions
 
     async init() {
         this.checkAuth();
@@ -437,17 +438,42 @@ export class App {
         const registrationForm = document.getElementById('registration-form') as HTMLFormElement;
 
         registerBtn?.addEventListener('click', () => {
+            // Clear any previous error messages and reset the form when opening the modal
+            const messageDiv = document.getElementById('registration-message');
+            if (messageDiv) {
+                messageDiv.innerHTML = '';
+                messageDiv.className = '';
+            }
+            if (registrationForm) {
+                registrationForm.reset();
+            }
             registrationModal?.classList.add('active');
         });
 
         closeRegistrationModal?.addEventListener('click', () => {
+            // Clear error messages and reset form when closing the modal
+            const messageDiv = document.getElementById('registration-message');
+            if (messageDiv) {
+                messageDiv.innerHTML = '';
+                messageDiv.className = '';
+            }
+            if (registrationForm) {
+                registrationForm.reset();
+            }
             registrationModal?.classList.remove('active');
         });
 
-        registrationForm?.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await this.handleRegistration();
-        });
+        // Prevent duplicate event listeners by checking if form already has data attribute
+        if (registrationForm && !registrationForm.hasAttribute('data-listener-attached')) {
+            registrationForm.setAttribute('data-listener-attached', 'true');
+            registrationForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                e.stopImmediatePropagation(); // Prevent other listeners from firing
+                if (!this.isRegistering) {
+                    await this.handleRegistration();
+                }
+            });
+        }
 
         // Login modal
         const loginBtn = document.getElementById('login-btn');
@@ -456,10 +482,28 @@ export class App {
         const loginForm = document.getElementById('login-form') as HTMLFormElement;
 
         loginBtn?.addEventListener('click', () => {
+            // Clear any previous error messages and reset the form when opening the modal
+            const messageDiv = document.getElementById('login-message');
+            if (messageDiv) {
+                messageDiv.innerHTML = '';
+                messageDiv.className = '';
+            }
+            if (loginForm) {
+                loginForm.reset();
+            }
             loginModal?.classList.add('active');
         });
 
         closeLoginModal?.addEventListener('click', () => {
+            // Clear error messages and reset form when closing the modal
+            const messageDiv = document.getElementById('login-message');
+            if (messageDiv) {
+                messageDiv.innerHTML = '';
+                messageDiv.className = '';
+            }
+            if (loginForm) {
+                loginForm.reset();
+            }
             loginModal?.classList.remove('active');
         });
 
@@ -696,6 +740,11 @@ export class App {
     }
 
     private async handleRegistration() {
+        // Prevent duplicate submissions
+        if (this.isRegistering) {
+            return;
+        }
+
         const messageDiv = document.getElementById('registration-message');
         const form = document.getElementById('registration-form') as HTMLFormElement;
         
@@ -712,6 +761,14 @@ export class App {
             return;
         }
 
+        // Set flag to prevent duplicate submissions and disable submit button
+        this.isRegistering = true;
+        const submitButton = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.textContent = 'Registering...';
+        }
+
         try {
             const formData = new FormData();
             formData.append('email', email);
@@ -721,16 +778,44 @@ export class App {
             formData.append('verificationImage', imageFile);
 
             await registrationApi.register(formData);
-            this.showMessage(messageDiv, 'Registration submitted! Your request is in review.', 'success');
+            
+            // Registration successful - close registration modal and open login modal with success message
             form.reset();
             
-            setTimeout(() => {
-                const modal = document.getElementById('registration-modal');
-                modal?.classList.remove('active');
-            }, 2000);
+            // Close registration modal
+            const registrationModal = document.getElementById('registration-modal');
+            registrationModal?.classList.remove('active');
+            
+            // Open login modal and show success message
+            const loginModal = document.getElementById('login-modal');
+            const loginMessageDiv = document.getElementById('login-message');
+            
+            if (loginModal && loginMessageDiv) {
+                // Clear any previous messages and show success message
+                loginMessageDiv.innerHTML = '';
+                loginMessageDiv.className = '';
+                this.showMessage(loginMessageDiv, 'Registration successful! Please log in to continue.', 'success');
+                
+                // Pre-fill the email field with the registered email
+                const loginEmailInput = document.getElementById('login-email') as HTMLInputElement;
+                if (loginEmailInput) {
+                    loginEmailInput.value = email;
+                }
+                
+                // Open the login modal
+                loginModal.classList.add('active');
+            }
         } catch (error: any) {
-            const errorMsg = error.response?.data?.error || 'Registration failed. Please try again.';
+            // Registration failed - show error and do NOT attempt login
+            const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Registration failed. Please try again.';
             this.showMessage(messageDiv, errorMsg, 'error');
+        } finally {
+            // Always reset the flag and re-enable submit button
+            this.isRegistering = false;
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Register';
+            }
         }
     }
 
@@ -791,6 +876,7 @@ export class App {
         } catch (error: any) {
             const errorMsg = error.response?.data?.error || 'Login failed. Please check your credentials.';
             this.showMessage(messageDiv, errorMsg, 'error');
+            form.reset(); // Clear the form on invalid credentials
         }
     }
 

@@ -69,12 +69,20 @@ export const eventApi = {
 
 export const registrationApi = {
     register: async (formData: FormData): Promise<{ message: string; requestId: string }> => {
-        const response = await api.post('/registration/register', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-        });
-        return response.data;
+        try {
+            const response = await api.post('/registration/register', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+            return response.data;
+        } catch (error: any) {
+            // Ensure error is properly thrown with response data
+            if (error.response && error.response.status >= 400) {
+                throw error; // Re-throw axios error which includes response.data
+            }
+            throw error;
+        }
     },
 };
 
