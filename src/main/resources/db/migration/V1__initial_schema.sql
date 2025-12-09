@@ -14,7 +14,7 @@ CREATE TABLE users (
     password VARCHAR(255) NOT NULL,
     first_name VARCHAR(255) NOT NULL,
     last_name VARCHAR(255) NOT NULL,
-    status VARCHAR(255) NOT NULL CHECK (status IN ('IN_REVIEW', 'APPROVED', 'REJECTED', 'DECLINED')),
+    status VARCHAR(255) NOT NULL CHECK (status IN ('IN_REVIEW', 'APPROVED', 'REJECTED', 'DECLINED', 'PICTURE_REQUESTED')),
     verification_image_path VARCHAR(1000),
     verification_notes VARCHAR(1000),
     is_admin BOOLEAN NOT NULL DEFAULT FALSE,

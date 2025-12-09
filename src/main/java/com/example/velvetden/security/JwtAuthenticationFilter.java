@@ -57,11 +57,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     .orElse(null);
                 
                 if (user != null) {
-                    // Extract authorities from token
-                    String authorities = jwtTokenValidator.extractAuthorities(jwt);
-                    List<SimpleGrantedAuthority> grantedAuthorities = Collections.singletonList(
-                        new SimpleGrantedAuthority(authorities != null ? authorities : "ROLE_USER")
-                    );
+                    // Extract authorities from token (space-separated string)
+                    String authoritiesStr = jwtTokenValidator.extractAuthorities(jwt);
+                    List<SimpleGrantedAuthority> grantedAuthorities;
+                    
+                    if (authoritiesStr != null && !authoritiesStr.trim().isEmpty()) {
+                        // Split space-separated authorities and convert to list
+                        grantedAuthorities = java.util.Arrays.stream(authoritiesStr.split("\\s+"))
+                            .map(SimpleGrantedAuthority::new)
+                            .collect(java.util.stream.Collectors.toList());
+                    } else {
+                        // Default to ROLE_USER if no authorities found
+                        grantedAuthorities = Collections.singletonList(
+                            new SimpleGrantedAuthority("ROLE_USER")
+                        );
+                    }
 
                     // Create authentication token
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(

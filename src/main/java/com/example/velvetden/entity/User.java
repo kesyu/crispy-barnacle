@@ -60,7 +60,9 @@ public class User {
     public enum UserStatus {
         IN_REVIEW,
         APPROVED,
-        REJECTED
+        REJECTED,
+        DECLINED,
+        PICTURE_REQUESTED
     }
     
     public boolean isApproved() {

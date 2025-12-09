@@ -62,5 +62,28 @@ public class AdminController {
             return ResponseEntity.badRequest().body(error);
         }
     }
+    
+    @PostMapping("/{userId}/request-picture")
+    public ResponseEntity<Map<String, Object>> requestPicture(@PathVariable("userId") Long userId) {
+        try {
+            User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+            
+            user.setStatus(User.UserStatus.PICTURE_REQUESTED);
+            userRepository.save(user);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Picture request sent to user successfully");
+            response.put("userId", user.getId());
+            response.put("email", user.getEmail());
+            response.put("status", user.getStatus().name());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
 }
 

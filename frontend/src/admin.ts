@@ -80,7 +80,17 @@ async function loadUserDetails() {
         // Set up button states based on URL action and current user status
         const approveBtn = document.getElementById('approve-btn') as HTMLButtonElement;
         const rejectBtn = document.getElementById('reject-btn') as HTMLButtonElement;
+        const requestPictureBtn = document.getElementById('request-picture-btn') as HTMLButtonElement;
         const currentStatus = user.status?.toUpperCase();
+        
+        // Reset all buttons to enabled state first
+        [approveBtn, rejectBtn, requestPictureBtn].forEach(btn => {
+            if (btn) {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
+            }
+        });
         
         // If user is already approved, keep reject button active (can change to reject)
         // If user is already rejected, keep approve button active (can change to approve)
@@ -90,14 +100,17 @@ async function loadUserDetails() {
                 approveBtn.style.opacity = '0.5';
                 approveBtn.style.cursor = 'not-allowed';
             }
-            // Reject button stays active
+            // Reject and request picture buttons stay active
         } else if (currentStatus === 'REJECTED') {
             if (rejectBtn) {
                 rejectBtn.disabled = true;
                 rejectBtn.style.opacity = '0.5';
                 rejectBtn.style.cursor = 'not-allowed';
             }
-            // Approve button stays active
+            // Approve and request picture buttons stay active
+        } else if (currentStatus === 'PICTURE_REQUESTED') {
+            // User has been requested to upload a new picture - all action buttons stay active
+            // Admin can still approve, reject, or request another picture
         } else {
             // User is IN_REVIEW - handle based on URL action parameter
             if (action === 'approve') {
@@ -210,9 +223,68 @@ async function rejectUser() {
     }
 }
 
+// Request new picture
+async function requestPicture() {
+    if (!userId) return;
+
+    const approveBtn = document.getElementById('approve-btn') as HTMLButtonElement;
+    const rejectBtn = document.getElementById('reject-btn') as HTMLButtonElement;
+    const requestPictureBtn = document.getElementById('request-picture-btn') as HTMLButtonElement;
+    
+    // Disable all buttons during request
+    [approveBtn, rejectBtn, requestPictureBtn].forEach(btn => {
+        if (btn) {
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+        }
+    });
+
+    try {
+        const response = await axios.post(
+            `${API_BASE_URL}/admin/users/${userId}/request-picture`,
+            {},
+            {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            }
+        );
+
+        showMessage('Picture request sent to user successfully!', 'success');
+        document.getElementById('user-status')!.textContent = 'PICTURE_REQUESTED';
+        
+        // Re-enable all buttons after successful request
+        [approveBtn, rejectBtn, requestPictureBtn].forEach(btn => {
+            if (btn) {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
+            }
+        });
+    } catch (error: any) {
+        console.error('Request picture error:', error);
+        console.error('Error response:', error.response);
+        const errorMsg = error.response?.data?.error || 
+                        error.response?.data?.message || 
+                        error.message || 
+                        'Unknown error';
+        showMessage('Failed to request new picture: ' + errorMsg, 'error');
+        // Re-enable buttons on failure
+        [approveBtn, rejectBtn, requestPictureBtn].forEach(btn => {
+            if (btn) {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
+            }
+        });
+    }
+}
+
 // Attach button handlers
 document.getElementById('approve-btn')?.addEventListener('click', approveUser);
 document.getElementById('reject-btn')?.addEventListener('click', rejectUser);
+document.getElementById('request-picture-btn')?.addEventListener('click', requestPicture);
 
 function showMessage(message: string, type: 'success' | 'error') {
     if (messageDiv) {
