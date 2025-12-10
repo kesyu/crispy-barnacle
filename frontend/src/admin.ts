@@ -115,8 +115,14 @@ async function loadUserDetails() {
             }
             // Approve and request picture buttons stay active
         } else if (currentStatus === 'PICTURE_REQUESTED') {
-            // User has been requested to upload a new picture - all action buttons stay active
-            // Admin can still approve, reject, or request another picture
+            // User has been requested to upload a new picture
+            // Disable request picture button since user already has this status
+            if (requestPictureBtn) {
+                requestPictureBtn.disabled = true;
+                requestPictureBtn.style.opacity = '0.5';
+                requestPictureBtn.style.cursor = 'not-allowed';
+            }
+            // Approve and reject buttons stay active - admin can still approve or reject
         } else {
             // User is IN_REVIEW - handle based on URL action parameter
             if (action === 'approve') {
@@ -174,19 +180,25 @@ async function approveUser() {
 
         showMessage('User approved successfully!', 'success');
         document.getElementById('user-status')!.innerHTML = getStatusBadge('APPROVED');
-        // After approval, disable approve button but keep reject active so admin can change mind
+        // After approval, disable approve button but keep reject and request picture active
         const approveBtn = document.getElementById('approve-btn') as HTMLButtonElement;
         const rejectBtn = document.getElementById('reject-btn') as HTMLButtonElement;
+        const requestPictureBtn = document.getElementById('request-picture-btn') as HTMLButtonElement;
         if (approveBtn) {
             approveBtn.disabled = true;
             approveBtn.style.opacity = '0.5';
             approveBtn.style.cursor = 'not-allowed';
         }
-        // Reject button stays active and enabled
+        // Reject and request picture buttons stay active and enabled
         if (rejectBtn) {
             rejectBtn.disabled = false;
             rejectBtn.style.opacity = '1';
             rejectBtn.style.cursor = 'pointer';
+        }
+        if (requestPictureBtn) {
+            requestPictureBtn.disabled = false;
+            requestPictureBtn.style.opacity = '1';
+            requestPictureBtn.style.cursor = 'pointer';
         }
     } catch (error: any) {
         showMessage('Failed to approve user: ' + (error.response?.data?.error || 'Unknown error'), 'error');
@@ -210,19 +222,25 @@ async function rejectUser() {
 
         showMessage('User rejected successfully!', 'success');
         document.getElementById('user-status')!.innerHTML = getStatusBadge('REJECTED');
-        // After rejection, disable reject button but keep approve active so admin can change mind
+        // After rejection, disable reject button but keep approve and request picture active
         const approveBtn = document.getElementById('approve-btn') as HTMLButtonElement;
         const rejectBtn = document.getElementById('reject-btn') as HTMLButtonElement;
+        const requestPictureBtn = document.getElementById('request-picture-btn') as HTMLButtonElement;
         if (rejectBtn) {
             rejectBtn.disabled = true;
             rejectBtn.style.opacity = '0.5';
             rejectBtn.style.cursor = 'not-allowed';
         }
-        // Approve button stays active and enabled
+        // Approve and request picture buttons stay active and enabled
         if (approveBtn) {
             approveBtn.disabled = false;
             approveBtn.style.opacity = '1';
             approveBtn.style.cursor = 'pointer';
+        }
+        if (requestPictureBtn) {
+            requestPictureBtn.disabled = false;
+            requestPictureBtn.style.opacity = '1';
+            requestPictureBtn.style.cursor = 'pointer';
         }
     } catch (error: any) {
         showMessage('Failed to reject user: ' + (error.response?.data?.error || 'Unknown error'), 'error');
@@ -260,14 +278,23 @@ async function requestPicture() {
         showMessage('Picture request sent to user successfully!', 'success');
         document.getElementById('user-status')!.innerHTML = getStatusBadge('PICTURE_REQUESTED');
         
-        // Re-enable all buttons after successful request
-        [approveBtn, rejectBtn, requestPictureBtn].forEach(btn => {
-            if (btn) {
-                btn.disabled = false;
-                btn.style.opacity = '1';
-                btn.style.cursor = 'pointer';
-            }
-        });
+        // Re-enable approve and reject buttons, but disable request picture button
+        // since user now has PICTURE_REQUESTED status
+        if (approveBtn) {
+            approveBtn.disabled = false;
+            approveBtn.style.opacity = '1';
+            approveBtn.style.cursor = 'pointer';
+        }
+        if (rejectBtn) {
+            rejectBtn.disabled = false;
+            rejectBtn.style.opacity = '1';
+            rejectBtn.style.cursor = 'pointer';
+        }
+        if (requestPictureBtn) {
+            requestPictureBtn.disabled = true;
+            requestPictureBtn.style.opacity = '0.5';
+            requestPictureBtn.style.cursor = 'not-allowed';
+        }
     } catch (error: any) {
         console.error('Request picture error:', error);
         console.error('Error response:', error.response);
