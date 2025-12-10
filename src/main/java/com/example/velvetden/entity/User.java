@@ -61,7 +61,6 @@ public class User {
         IN_REVIEW,
         APPROVED,
         REJECTED,
-        DECLINED,
         PICTURE_REQUESTED
     }
     

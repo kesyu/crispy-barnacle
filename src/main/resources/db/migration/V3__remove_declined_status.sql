@@ -1,8 +1,12 @@
--- Migration script to add PICTURE_REQUESTED status
--- The Velvet Den - Add Picture Requested Status
+-- Migration script to remove DECLINED status
+-- The Velvet Den - Remove DECLINED Status
+-- DECLINED status is removed, REJECTED should be used instead
+-- If any users have DECLINED status, they will be converted to REJECTED
 
--- Drop the existing check constraint (PostgreSQL auto-generates constraint names)
--- Find and drop any existing status check constraint
+-- First, update any existing DECLINED users to REJECTED
+UPDATE users SET status = 'REJECTED' WHERE status = 'DECLINED';
+
+-- Drop the existing check constraint
 DO $$
 DECLARE
     constraint_name text;
@@ -21,7 +25,7 @@ BEGIN
     END IF;
 END $$;
 
--- Add the new check constraint with PICTURE_REQUESTED status
+-- Add the new check constraint without DECLINED status
 ALTER TABLE users ADD CONSTRAINT users_status_check 
     CHECK (status IN ('IN_REVIEW', 'APPROVED', 'REJECTED', 'PICTURE_REQUESTED'));
 

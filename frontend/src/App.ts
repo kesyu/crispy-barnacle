@@ -191,13 +191,40 @@ export class App {
         const hasExistingBooking = this.isAuthenticated && this.userDetails && this.userDetails.approved && this.userDetails.bookedSpacesCount > 0;
         const isMySpace = !isAvailable && this.isAuthenticated && space.bookedBy === this.userEmail;
         
+        // Check if user is rejected - PRIORITY CHECK (must come before isNotApproved)
+        // REJECTED users should have greyed out cards
+        // Backend returns status as enum name (e.g., "REJECTED")
+        // Note: "declined" is treated as "rejected" for backward compatibility
+        const userStatus = this.userDetails?.status;
+        const statusUpper = userStatus ? String(userStatus).trim().toUpperCase() : '';
+        
+        // Check for rejected status - must be checked first and take priority
+        // Also handle "declined" as "rejected" if someone types it accidentally
+        const isRejected = this.isAuthenticated && 
+            this.userDetails && 
+            userStatus !== null && 
+            userStatus !== undefined &&
+            (statusUpper === 'REJECTED' || statusUpper === 'DECLINED');
+        
         // If user is logged in but not approved, make available spaces appear red
-        const isNotApproved = this.isAuthenticated && this.userDetails && !this.userDetails.approved;
-        if (isAvailable && isNotApproved) {
-            statusClass = 'available-not-approved';
-        } else if (isAvailable && hasExistingBooking && !isMySpace) {
-            // If user already has a booking and this is not their space, grey it out
-            statusClass = 'available-disabled';
+        // IMPORTANT: Exclude rejected users from isNotApproved - they take priority
+        const isNotApproved = this.isAuthenticated && 
+            this.userDetails && 
+            !isRejected &&  // Check rejected first - if rejected, can't be not-approved
+            !this.userDetails.approved;
+        
+        if (isAvailable) {
+            // PRIORITY: Check rejected FIRST - this status takes absolute priority
+            if (isRejected) {
+                // Rejected users should have spaces greyed out
+                statusClass = 'available-disabled';
+            } else if (isNotApproved) {
+                // Only show not-approved if user is NOT rejected
+                statusClass = 'available-not-approved';
+            } else if (hasExistingBooking && !isMySpace) {
+                // If user already has a booking and this is not their space, grey it out
+                statusClass = 'available-disabled';
+            }
         }
         
         // Add 'my-space' class if it's the user's booked space
@@ -207,7 +234,9 @@ export class App {
         
         let statusText: string;
         if (isAvailable) {
-            if (isNotApproved) {
+            if (isRejected) {
+                statusText = 'Not Available (Account Rejected)';
+            } else if (isNotApproved) {
                 statusText = 'Not Available (Account In Review)';
             } else if (hasExistingBooking && !isMySpace) {
                 statusText = 'Already Booked (One Space Limit)';
@@ -234,7 +263,7 @@ export class App {
             : '';
 
         return `
-            <div class="space-card ${statusClass}" data-space-id="${space.id}" data-available="${isAvailable}" data-not-approved="${isNotApproved && isAvailable}" data-disabled="${hasExistingBooking && isAvailable && !isMySpace}">
+            <div class="space-card ${statusClass}" data-space-id="${space.id}" data-available="${isAvailable}" data-not-approved="${isNotApproved && isAvailable}" data-rejected="${isRejected && isAvailable}" data-disabled="${(hasExistingBooking || isRejected) && isAvailable && !isMySpace}">
                 <div class="space-name">${space.name}</div>
                 <div class="space-color ${colorClass}"></div>
                 <div class="space-status">${statusText}</div>
@@ -643,7 +672,14 @@ export class App {
                 const spaceId = parseInt(target.dataset.spaceId || '0');
                 const isAvailable = target.dataset.available === 'true';
                 const isNotApproved = target.dataset.notApproved === 'true';
+                const isRejected = target.dataset.rejected === 'true';
                 const isDisabled = target.dataset.disabled === 'true';
+                
+                // If user is rejected, prevent booking (spaces are already greyed out)
+                if (isRejected && this.isAuthenticated) {
+                    // Don't allow rejected users to book spaces
+                    return;
+                }
                 
                 // If user is not approved, show warning modal instead
                 if (isNotApproved && this.isAuthenticated) {
@@ -653,7 +689,7 @@ export class App {
                 }
                 
                 // If user already has a booking, prevent booking another space
-                if (isDisabled && this.isAuthenticated) {
+                if (isDisabled && this.isAuthenticated && !isRejected) {
                     // Show the one space limit modal
                     const oneSpaceLimitModal = document.getElementById('one-space-limit-modal');
                     oneSpaceLimitModal?.classList.add('active');
