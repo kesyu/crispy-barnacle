@@ -16,6 +16,10 @@ api.interceptors.request.use((config) => {
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
+    // If the data is FormData, remove Content-Type header so axios can set it with the correct boundary
+    if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+    }
     return config;
 });
 
@@ -70,11 +74,8 @@ export const eventApi = {
 export const registrationApi = {
     register: async (formData: FormData): Promise<{ message: string; requestId: string }> => {
         try {
-            const response = await api.post('/registration/register', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
+            // The interceptor will automatically remove Content-Type for FormData
+            const response = await api.post('/registration/register', formData);
             return response.data;
         } catch (error: any) {
             // Ensure error is properly thrown with response data
@@ -108,6 +109,18 @@ export const userApi = {
     getCurrentUser: async (): Promise<UserDetailsDTO> => {
         const response = await api.get<UserDetailsDTO>('/users/me');
         return response.data;
+    },
+    uploadPicture: async (formData: FormData): Promise<{ message: string; status: string; verificationImagePath: string }> => {
+        try {
+            // The interceptor will automatically remove Content-Type for FormData
+            const response = await api.post('/users/me/upload-picture', formData);
+            return response.data;
+        } catch (error: any) {
+            if (error.response && error.response.status >= 400) {
+                throw error;
+            }
+            throw error;
+        }
     },
 };
 

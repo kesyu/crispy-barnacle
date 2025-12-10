@@ -63,12 +63,18 @@ async function loadUserDetails() {
         document.getElementById('user-name')!.textContent = `${user.firstName} ${user.lastName}`;
         document.getElementById('user-email')!.textContent = user.email;
         document.getElementById('user-date')!.textContent = new Date(user.createdAt).toLocaleString();
-        document.getElementById('user-status')!.textContent = user.status;
+        
+        // Display status with badge
+        const statusElement = document.getElementById('user-status')!;
+        const statusBadge = getStatusBadge(user.status);
+        statusElement.innerHTML = statusBadge;
 
         // Show verification image if available
         const imageContainer = document.getElementById('verification-image-container')!;
         if (user.verificationImagePath) {
-            const imageUrl = `${API_BASE_URL}/files?path=${encodeURIComponent(user.verificationImagePath)}`;
+            // Add cache-busting parameter to force browser to reload image
+            const timestamp = new Date().getTime();
+            const imageUrl = `${API_BASE_URL}/files?path=${encodeURIComponent(user.verificationImagePath)}&t=${timestamp}`;
             imageContainer.innerHTML = `
                 <p><strong>Verification Image:</strong></p>
                 <img src="${imageUrl}" alt="Verification Image" class="verification-image" />
@@ -167,7 +173,7 @@ async function approveUser() {
         );
 
         showMessage('User approved successfully!', 'success');
-        document.getElementById('user-status')!.textContent = 'APPROVED';
+        document.getElementById('user-status')!.innerHTML = getStatusBadge('APPROVED');
         // After approval, disable approve button but keep reject active so admin can change mind
         const approveBtn = document.getElementById('approve-btn') as HTMLButtonElement;
         const rejectBtn = document.getElementById('reject-btn') as HTMLButtonElement;
@@ -203,7 +209,7 @@ async function rejectUser() {
         );
 
         showMessage('User rejected successfully!', 'success');
-        document.getElementById('user-status')!.textContent = 'REJECTED';
+        document.getElementById('user-status')!.innerHTML = getStatusBadge('REJECTED');
         // After rejection, disable reject button but keep approve active so admin can change mind
         const approveBtn = document.getElementById('approve-btn') as HTMLButtonElement;
         const rejectBtn = document.getElementById('reject-btn') as HTMLButtonElement;
@@ -252,7 +258,7 @@ async function requestPicture() {
         );
 
         showMessage('Picture request sent to user successfully!', 'success');
-        document.getElementById('user-status')!.textContent = 'PICTURE_REQUESTED';
+        document.getElementById('user-status')!.innerHTML = getStatusBadge('PICTURE_REQUESTED');
         
         // Re-enable all buttons after successful request
         [approveBtn, rejectBtn, requestPictureBtn].forEach(btn => {
@@ -285,6 +291,24 @@ async function requestPicture() {
 document.getElementById('approve-btn')?.addEventListener('click', approveUser);
 document.getElementById('reject-btn')?.addEventListener('click', rejectUser);
 document.getElementById('request-picture-btn')?.addEventListener('click', requestPicture);
+
+function getStatusBadge(status: string): string {
+    const upperStatus = status?.toUpperCase() || '';
+    switch (upperStatus) {
+        case 'APPROVED':
+            return '<span style="background: #4caf50; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.9rem; font-weight: 600;">✓ APPROVED</span>';
+        case 'PICTURE_REQUESTED':
+            return '<span style="background: #2196f3; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.9rem; font-weight: 600;">📷 PICTURE REQUESTED</span>';
+        case 'REJECTED':
+            return '<span style="background: #f44336; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.9rem; font-weight: 600;">✗ REJECTED</span>';
+        case 'IN_REVIEW':
+            return '<span style="background: #ff9800; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.9rem; font-weight: 600;">⏳ IN REVIEW</span>';
+        case 'DECLINED':
+            return '<span style="background: #9e9e9e; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.9rem; font-weight: 600;">✗ DECLINED</span>';
+        default:
+            return `<span style="background: #9e9e9e; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.9rem; font-weight: 600;">${status}</span>`;
+    }
+}
 
 function showMessage(message: string, type: 'success' | 'error') {
     if (messageDiv) {

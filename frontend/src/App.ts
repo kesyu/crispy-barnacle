@@ -79,6 +79,9 @@ export class App {
         if (!document.getElementById('login-modal')) {
             document.body.insertAdjacentHTML('beforeend', this.renderLoginModal());
         }
+        if (!document.getElementById('upload-picture-modal')) {
+            document.body.insertAdjacentHTML('beforeend', this.renderUploadPictureModal());
+        }
         if (!document.getElementById('booking-confirmation-modal')) {
             document.body.insertAdjacentHTML('beforeend', this.renderBookingConfirmationModal());
         }
@@ -102,6 +105,9 @@ export class App {
     private renderAuthSection(): string {
         if (this.isAuthenticated) {
             const statusBadge = this.getStatusBadge();
+            const uploadButton = this.userDetails?.status === 'PICTURE_REQUESTED' 
+                ? '<button class="btn btn-primary" id="upload-picture-header-btn" style="margin-right: 0.5rem; font-size: 0.85rem; padding: 0.25rem 0.75rem;">📷 Upload Picture</button>'
+                : '';
             return `
                 <div class="login-section">
                     <div class="user-info">
@@ -110,7 +116,8 @@ export class App {
                             <button class="btn btn-secondary" id="profile-btn" style="margin-right: 0.5rem;">View Profile</button>
                             <button class="logout-btn" id="logout-btn">Logout</button>
                         </div>
-                        <div class="user-info-right">
+                        <div class="user-info-right" style="display: flex; align-items: center; gap: 0.5rem;">
+                            ${uploadButton}
                             ${statusBadge}
                         </div>
                     </div>
@@ -270,6 +277,30 @@ export class App {
                             </small>
                         </div>
                         <button type="submit" class="btn btn-primary">Submit Registration</button>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+    private renderUploadPictureModal(): string {
+        return `
+            <div id="upload-picture-modal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Upload New Verification Picture</h2>
+                        <button class="close-btn" id="close-upload-picture-modal">&times;</button>
+                    </div>
+                    <div id="upload-picture-message"></div>
+                    <form id="upload-picture-form">
+                        <div class="form-group">
+                            <label for="upload-image">Verification Image (Proof of identity and fitness)</label>
+                            <input type="file" id="upload-image" accept="image/*" required>
+                            <small style="color: #666; margin-top: 0.5rem; display: block;">
+                                Please upload a new photo showing your face and demonstrating good physical fitness.
+                            </small>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Upload Picture</button>
                     </form>
                 </div>
             </div>
@@ -525,12 +556,74 @@ export class App {
             this.handleLogout();
         });
 
+        // Upload picture button in header
+        const uploadPictureHeaderBtn = document.getElementById('upload-picture-header-btn');
+        uploadPictureHeaderBtn?.addEventListener('click', () => {
+            const uploadModal = document.getElementById('upload-picture-modal');
+            if (uploadModal) {
+                // Clear any previous messages and reset form
+                const messageDiv = document.getElementById('upload-picture-message');
+                if (messageDiv) {
+                    messageDiv.innerHTML = '';
+                    messageDiv.className = '';
+                }
+                const form = document.getElementById('upload-picture-form') as HTMLFormElement;
+                if (form) {
+                    form.reset();
+                }
+                uploadModal.classList.add('active');
+            }
+        });
+
+        // Upload picture form submission (global listener)
+        const uploadPictureForm = document.getElementById('upload-picture-form') as HTMLFormElement;
+        if (uploadPictureForm && !uploadPictureForm.hasAttribute('data-listener-attached')) {
+            uploadPictureForm.setAttribute('data-listener-attached', 'true');
+            uploadPictureForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.handleUploadPicture();
+            });
+        }
+
+        // Close upload picture modal
+        const closeUploadPictureModal = document.getElementById('close-upload-picture-modal');
+        closeUploadPictureModal?.addEventListener('click', () => {
+            const uploadModal = document.getElementById('upload-picture-modal');
+            const messageDiv = document.getElementById('upload-picture-message');
+            if (messageDiv) {
+                messageDiv.innerHTML = '';
+                messageDiv.className = '';
+            }
+            const form = document.getElementById('upload-picture-form') as HTMLFormElement;
+            if (form) {
+                form.reset();
+            }
+            uploadModal?.classList.remove('active');
+        });
+
+        // Close upload picture modal when clicking outside
+        const uploadModal = document.getElementById('upload-picture-modal');
+        uploadModal?.addEventListener('click', (e) => {
+            if (e.target === uploadModal) {
+                const messageDiv = document.getElementById('upload-picture-message');
+                if (messageDiv) {
+                    messageDiv.innerHTML = '';
+                    messageDiv.className = '';
+                }
+                const form = document.getElementById('upload-picture-form') as HTMLFormElement;
+                if (form) {
+                    form.reset();
+                }
+                uploadModal.classList.remove('active');
+            }
+        });
+
         // Space booking
         document.querySelectorAll('.space-card.available, .space-card.available-not-approved, .space-card.available-disabled').forEach(card => {
             card.addEventListener('click', async (e) => {
                 // Don't trigger if a blocking modal is active (confirmation modals, login, or registration)
                 // Only block interactive modals, not informational ones that can be dismissed
-                const blockingModalIds = ['booking-confirmation-modal', 'cancel-booking-confirmation-modal', 'login-modal', 'registration-modal'];
+                const blockingModalIds = ['booking-confirmation-modal', 'cancel-booking-confirmation-modal', 'login-modal', 'registration-modal', 'upload-picture-modal'];
                 const activeBlockingModal = blockingModalIds.some(id => {
                     const modal = document.getElementById(id);
                     return modal?.classList.contains('active');
@@ -1264,6 +1357,8 @@ export class App {
 
         if (this.userDetails.approved) {
             return '<span style="background: #4caf50; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">✓ APPROVED</span>';
+        } else if (this.userDetails.status === 'PICTURE_REQUESTED') {
+            return '<span style="background: #2196f3; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600; white-space: nowrap;">📷 PICTURE REQUESTED</span>';
         } else if (this.userDetails.status === 'IN_REVIEW') {
             return '<span style="background: #ff9800; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">⏳ IN REVIEW</span>';
         } else if (this.userDetails.status === 'REJECTED') {
@@ -1279,10 +1374,12 @@ export class App {
         const authButtons = document.querySelector('.auth-buttons');
         const targetElement = loginSection || authButtons;
         
-        if (targetElement && targetElement.parentElement) {
-            targetElement.parentElement.innerHTML = this.renderAuthSection();
+        if (targetElement) {
+            // Replace only the target element, not its parent
+            targetElement.outerHTML = this.renderAuthSection();
             // Re-attach event listeners for buttons in the auth section
             const profileBtn = document.getElementById('profile-btn');
+            const uploadPictureHeaderBtn = document.getElementById('upload-picture-header-btn');
             const logoutBtn = document.getElementById('logout-btn');
             
             profileBtn?.addEventListener('click', () => {
@@ -1292,6 +1389,23 @@ export class App {
             
             logoutBtn?.addEventListener('click', () => {
                 this.handleLogout();
+            });
+
+            uploadPictureHeaderBtn?.addEventListener('click', () => {
+                const uploadModal = document.getElementById('upload-picture-modal');
+                if (uploadModal) {
+                    // Clear any previous messages and reset form
+                    const messageDiv = document.getElementById('upload-picture-message');
+                    if (messageDiv) {
+                        messageDiv.innerHTML = '';
+                        messageDiv.className = '';
+                    }
+                    const form = document.getElementById('upload-picture-form') as HTMLFormElement;
+                    if (form) {
+                        form.reset();
+                    }
+                    uploadModal.classList.add('active');
+                }
             });
         }
     }
@@ -1308,9 +1422,16 @@ export class App {
             minute: '2-digit'
         });
 
-        const statusBadge = this.userDetails.approved 
-            ? '<span style="background: #4caf50; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.9rem; font-weight: 600;">✓ APPROVED</span>'
-            : '<span style="background: #ff9800; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.9rem; font-weight: 600;">⏳ IN REVIEW</span>';
+        let statusBadge: string;
+        if (this.userDetails.approved) {
+            statusBadge = '<span style="background: #4caf50; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.9rem; font-weight: 600;">✓ APPROVED</span>';
+        } else if (this.userDetails.status === 'PICTURE_REQUESTED') {
+            statusBadge = '<span style="background: #2196f3; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.9rem; font-weight: 600; white-space: nowrap;">📷 PICTURE REQUESTED</span>';
+        } else if (this.userDetails.status === 'REJECTED') {
+            statusBadge = '<span style="background: #f44336; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.9rem; font-weight: 600;">✗ REJECTED</span>';
+        } else {
+            statusBadge = '<span style="background: #ff9800; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.9rem; font-weight: 600;">⏳ IN REVIEW</span>';
+        }
 
         container.innerHTML = `
             <div class="user-profile">
@@ -1337,14 +1458,38 @@ export class App {
                         <span class="detail-value">${this.userDetails.bookedSpacesCount}</span>
                     </div>
                     ${this.userDetails.verificationImagePath ? `
-                    <div class="detail-row">
-                        <span class="detail-label">Verification Image:</span>
-                        <span class="detail-value">${this.userDetails.verificationImagePath}</span>
+                    <div class="detail-row" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e0e0e0;">
+                        <div style="width: 100%;">
+                            <span class="detail-label" style="display: block; margin-bottom: 1rem;">Verification Image:</span>
+                            <div style="display: flex; justify-content: center; align-items: center;">
+                                <img src="/api/files?path=${encodeURIComponent(this.userDetails.verificationImagePath)}&t=${new Date().getTime()}" 
+                                     alt="Verification Image" 
+                                     style="max-width: 100%; max-height: 400px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+                    ${this.userDetails.status === 'PICTURE_REQUESTED' ? `
+                    <div class="detail-row" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e0e0e0;">
+                        <div style="background: #e3f2fd; padding: 1rem; border-radius: 8px; border-left: 4px solid #2196f3;">
+                            <p style="margin: 0 0 1rem 0; color: #1976d2; font-weight: 600;">
+                                📷 New Picture Required
+                            </p>
+                            <p style="margin: 0 0 1rem 0; color: #333;">
+                                Your verification picture needs to be updated. Please upload a new picture for review.
+                            </p>
+                            <button class="btn btn-primary" id="upload-picture-btn" style="width: auto; min-width: 200px;">
+                                Upload New Picture
+                            </button>
+                        </div>
                     </div>
                     ` : ''}
                 </div>
             </div>
         `;
+        
+        // Re-attach event listeners for elements that were just created/updated
+        this.attachProfileContentListeners();
     }
 
     private attachProfileEventListeners() {
@@ -1353,6 +1498,154 @@ export class App {
             this.currentPage = 'home';
             this.render();
         });
+    }
+
+    private attachProfileContentListeners() {
+        // Upload picture button (this is called after renderUserDetails updates the content)
+        const uploadPictureBtn = document.getElementById('upload-picture-btn');
+        if (uploadPictureBtn) {
+            // Remove any existing listeners by cloning the node
+            const newBtn = uploadPictureBtn.cloneNode(true);
+            uploadPictureBtn.parentNode?.replaceChild(newBtn, uploadPictureBtn);
+            
+            // Attach fresh listener to the new button
+            (newBtn as HTMLElement).addEventListener('click', () => {
+                const uploadModal = document.getElementById('upload-picture-modal');
+                if (uploadModal) {
+                    // Clear any previous messages and reset form
+                    const messageDiv = document.getElementById('upload-picture-message');
+                    if (messageDiv) {
+                        messageDiv.innerHTML = '';
+                        messageDiv.className = '';
+                    }
+                    const form = document.getElementById('upload-picture-form') as HTMLFormElement;
+                    if (form) {
+                        form.reset();
+                    }
+                    uploadModal.classList.add('active');
+                }
+            });
+        }
+    }
+
+    private async handleUploadPicture() {
+        const messageDiv = document.getElementById('upload-picture-message');
+        const form = document.getElementById('upload-picture-form') as HTMLFormElement;
+        
+        if (!messageDiv || !form) return;
+
+        const imageFile = (document.getElementById('upload-image') as HTMLInputElement).files?.[0];
+
+        if (!imageFile) {
+            this.showMessage(messageDiv, 'Please select a verification image', 'error');
+            return;
+        }
+
+        const submitButton = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.textContent = 'Uploading...';
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('verificationImage', imageFile);
+
+            const response = await userApi.uploadPicture(formData);
+
+            // Close upload modal immediately
+            const uploadModal = document.getElementById('upload-picture-modal');
+            uploadModal?.classList.remove('active');
+            form.reset();
+
+            // Clean up URL if it has any query parameters
+            if (window.location.search) {
+                window.history.replaceState({}, '', window.location.pathname);
+            }
+
+            // Reload user details to update status
+            await this.loadUserDetails();
+
+            // Update auth section to reflect new status (remove upload button if status changed)
+            this.updateAuthSection();
+
+            // Show success confirmation modal
+            const existingModal = document.getElementById('upload-picture-success-modal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            const successModal = document.createElement('div');
+            successModal.className = 'modal active';
+            successModal.id = 'upload-picture-success-modal';
+
+            const closeSuccessModal = () => {
+                successModal.classList.remove('active');
+                setTimeout(() => {
+                    successModal.remove();
+                }, 300);
+            };
+
+            successModal.innerHTML = `
+                <div class="modal-content" style="max-width: 400px; text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem; color: #4caf50;">✓</div>
+                    <h2 style="color: #4caf50; margin-bottom: 1rem;">Picture Uploaded!</h2>
+                    <p style="margin-bottom: 1.5rem;">${response.message || 'Picture uploaded successfully! Your account is back in review.'}</p>
+                    <button class="btn btn-primary" id="upload-picture-success-ok-btn">OK</button>
+                </div>
+            `;
+            document.body.appendChild(successModal);
+
+            // Add click handler to OK button
+            const okBtn = successModal.querySelector('#upload-picture-success-ok-btn');
+            okBtn?.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                closeSuccessModal();
+
+                // Refresh the page view if on profile page
+                if (this.currentPage === 'profile') {
+                    this.render();
+                }
+                
+                return false;
+            }, { once: true });
+
+            // Prevent modal from closing when clicking inside the modal content
+            const modalContent = successModal.querySelector('.modal-content');
+            modalContent?.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
+            // Close modal when clicking outside (on backdrop)
+            successModal.addEventListener('click', (e) => {
+                if (e.target === successModal) {
+                    closeSuccessModal();
+                    // Refresh the page view if on profile page
+                    if (this.currentPage === 'profile') {
+                        this.render();
+                    }
+                }
+            });
+
+        } catch (error: any) {
+            console.error('Upload picture error:', error);
+            let errorMsg = 'Failed to upload picture. Please try again.';
+            if (error.response?.data?.error) {
+                errorMsg = error.response.data.error;
+            } else if (error.response?.data?.message) {
+                errorMsg = error.response.data.message;
+            } else if (error.message) {
+                errorMsg = error.message;
+            }
+            this.showMessage(messageDiv, errorMsg, 'error');
+        } finally {
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Upload Picture';
+            }
+        }
     }
 }
 

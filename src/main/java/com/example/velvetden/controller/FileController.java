@@ -27,7 +27,23 @@ public class FileController {
                 return ResponseEntity.badRequest().build();
             }
             
-            Path filePath = Paths.get(path);
+            // Resolve path relative to upload directory
+            // Path might be stored as "uploads/filename.jpg" or just "filename.jpg"
+            Path filePath;
+            if (path.startsWith(uploadDir)) {
+                // Path already includes upload directory
+                filePath = Paths.get(path).normalize();
+            } else {
+                // Path is relative, resolve against upload directory
+                filePath = Paths.get(uploadDir).resolve(path).normalize();
+            }
+            
+            // Security check: ensure the resolved path is within the upload directory
+            Path uploadDirPath = Paths.get(uploadDir).toAbsolutePath().normalize();
+            if (!filePath.toAbsolutePath().normalize().startsWith(uploadDirPath)) {
+                return ResponseEntity.badRequest().build();
+            }
+            
             File file = filePath.toFile();
             
             if (!file.exists() || !file.isFile()) {
@@ -40,6 +56,9 @@ public class FileController {
             return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(contentType))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + file.getName() + "\"")
+                .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate")
+                .header(HttpHeaders.PRAGMA, "no-cache")
+                .header(HttpHeaders.EXPIRES, "0")
                 .body(resource);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();

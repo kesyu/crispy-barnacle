@@ -44,5 +44,20 @@ public class UserService {
         return userRepository.findByEmail(email)
             .orElseThrow(() -> new RuntimeException("User not found"));
     }
+    
+    @Transactional
+    public User updateVerificationImage(Long userId, String imagePath) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        // Delete old image file if it exists (optional - can be done via cleanup job)
+        // For now, just update the path
+        
+        user.setVerificationImagePath(imagePath);
+        // Change status back to IN_REVIEW when new picture is uploaded
+        user.setStatus(User.UserStatus.IN_REVIEW);
+        
+        return userRepository.save(user);
+    }
 }
 

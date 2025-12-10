@@ -72,7 +72,9 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/events/**", "/api/registration/**", "/api/auth/**", "/api/admin/**", "/api/files/**", "/api/users/**").permitAll()
+                .requestMatchers("/api/events/**", "/api/registration/**", "/api/auth/**", "/api/admin/**", "/api/files/**").permitAll()
+                .requestMatchers("/api/users/me/**").authenticated() // User's own endpoints require authentication (must come before /api/users/{userId})
+                .requestMatchers("/api/users/{userId}").permitAll() // Allow admin to fetch user by ID
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 .anyRequest().authenticated()
             )
