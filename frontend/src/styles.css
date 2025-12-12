@@ -221,6 +221,15 @@ body {
     color: #2196f3;
 }
 
+.verification-thumbnail {
+    transition: transform 0.2s ease;
+}
+
+.verification-thumbnail:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+}
+
 .modal {
     display: none;
     position: fixed;

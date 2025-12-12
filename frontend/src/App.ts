@@ -82,6 +82,9 @@ export class App {
         if (!document.getElementById('upload-picture-modal')) {
             document.body.insertAdjacentHTML('beforeend', this.renderUploadPictureModal());
         }
+        if (!document.getElementById('image-viewer-modal')) {
+            document.body.insertAdjacentHTML('beforeend', this.renderImageViewerModal());
+        }
         if (!document.getElementById('booking-confirmation-modal')) {
             document.body.insertAdjacentHTML('beforeend', this.renderBookingConfirmationModal());
         }
@@ -331,6 +334,17 @@ export class App {
                         </div>
                         <button type="submit" class="btn btn-primary">Upload Picture</button>
                     </form>
+                </div>
+            </div>
+        `;
+    }
+
+    private renderImageViewerModal(): string {
+        return `
+            <div id="image-viewer-modal" class="modal">
+                <div class="modal-content" style="max-width: 90vw; max-height: 90vh; padding: 0; background: transparent; box-shadow: none;">
+                    <button class="close-btn" id="close-image-viewer-modal" style="position: absolute; top: 10px; right: 10px; z-index: 1001; background: rgba(0,0,0,0.7); color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; font-size: 24px; transition: background 0.2s;">&times;</button>
+                    <img id="image-viewer-full-image" src="" alt="Full size image" style="max-width: 100%; max-height: 90vh; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);" />
                 </div>
             </div>
         `;
@@ -644,6 +658,20 @@ export class App {
                     form.reset();
                 }
                 uploadModal.classList.remove('active');
+            }
+        });
+
+        // Image viewer modal handlers
+        const imageViewerModal = document.getElementById('image-viewer-modal');
+        const closeImageViewerModal = document.getElementById('close-image-viewer-modal');
+        
+        closeImageViewerModal?.addEventListener('click', () => {
+            imageViewerModal?.classList.remove('active');
+        });
+        
+        imageViewerModal?.addEventListener('click', (e) => {
+            if (e.target === imageViewerModal) {
+                imageViewerModal.classList.remove('active');
             }
         });
 
@@ -1493,30 +1521,39 @@ export class App {
                         <span class="detail-label">Booked Spaces:</span>
                         <span class="detail-value">${this.userDetails.bookedSpacesCount}</span>
                     </div>
-                    ${this.userDetails.verificationImagePath ? `
+                    ${this.userDetails.verificationImagePath || this.userDetails.status === 'PICTURE_REQUESTED' ? `
                     <div class="detail-row" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e0e0e0;">
                         <div style="width: 100%;">
                             <span class="detail-label" style="display: block; margin-bottom: 1rem;">Verification Image:</span>
-                            <div style="display: flex; justify-content: center; align-items: center;">
-                                <img src="/api/files?path=${encodeURIComponent(this.userDetails.verificationImagePath)}&t=${new Date().getTime()}" 
-                                     alt="Verification Image" 
-                                     style="max-width: 100%; max-height: 400px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+                            <div style="display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap;">
+                                ${this.userDetails.verificationImagePath ? `
+                                <div style="flex: 0 0 auto;">
+                                    <div style="display: flex; justify-content: center; align-items: center;">
+                                        <img src="/api/files?path=${encodeURIComponent(this.userDetails.verificationImagePath)}&t=${new Date().getTime()}" 
+                                             alt="Verification Image" 
+                                             class="verification-thumbnail"
+                                             data-full-image="/api/files?path=${encodeURIComponent(this.userDetails.verificationImagePath)}&t=${new Date().getTime()}"
+                                             style="max-width: 200px; max-height: 200px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s;" />
+                                    </div>
+                                    <p style="text-align: center; margin-top: 0.5rem; color: #666; font-size: 0.85rem;">Click to view full size</p>
+                                </div>
+                                ` : ''}
+                                ${this.userDetails.status === 'PICTURE_REQUESTED' ? `
+                                <div style="flex: 1 1 300px; min-width: 250px;">
+                                    <div style="background: #e3f2fd; padding: 1rem; border-radius: 8px; border-left: 4px solid #2196f3;">
+                                        <p style="margin: 0 0 1rem 0; color: #1976d2; font-weight: 600;">
+                                            📷 New Picture Required
+                                        </p>
+                                        <p style="margin: 0 0 1rem 0; color: #333;">
+                                            Your verification picture needs to be updated. Please upload a new picture for review.
+                                        </p>
+                                        <button class="btn btn-primary" id="upload-picture-btn" style="width: auto; min-width: 200px;">
+                                            Upload New Picture
+                                        </button>
+                                    </div>
+                                </div>
+                                ` : ''}
                             </div>
-                        </div>
-                    </div>
-                    ` : ''}
-                    ${this.userDetails.status === 'PICTURE_REQUESTED' ? `
-                    <div class="detail-row" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e0e0e0;">
-                        <div style="background: #e3f2fd; padding: 1rem; border-radius: 8px; border-left: 4px solid #2196f3;">
-                            <p style="margin: 0 0 1rem 0; color: #1976d2; font-weight: 600;">
-                                📷 New Picture Required
-                            </p>
-                            <p style="margin: 0 0 1rem 0; color: #333;">
-                                Your verification picture needs to be updated. Please upload a new picture for review.
-                            </p>
-                            <button class="btn btn-primary" id="upload-picture-btn" style="width: auto; min-width: 200px;">
-                                Upload New Picture
-                            </button>
                         </div>
                     </div>
                     ` : ''}
@@ -1526,6 +1563,26 @@ export class App {
         
         // Re-attach event listeners for elements that were just created/updated
         this.attachProfileContentListeners();
+        
+        // Attach click handler for verification thumbnail
+        const thumbnail = container.querySelector('.verification-thumbnail');
+        if (thumbnail) {
+            thumbnail.addEventListener('click', (e) => {
+                const fullImageUrl = (e.target as HTMLElement).getAttribute('data-full-image');
+                if (fullImageUrl) {
+                    this.openImageViewer(fullImageUrl);
+                }
+            });
+        }
+    }
+    
+    private openImageViewer(imageUrl: string) {
+        const modal = document.getElementById('image-viewer-modal');
+        const fullImage = document.getElementById('image-viewer-full-image');
+        if (modal && fullImage) {
+            fullImage.setAttribute('src', imageUrl);
+            modal.classList.add('active');
+        }
     }
 
     private attachProfileEventListeners() {

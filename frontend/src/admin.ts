@@ -77,8 +77,23 @@ async function loadUserDetails() {
             const imageUrl = `${API_BASE_URL}/files?path=${encodeURIComponent(user.verificationImagePath)}&t=${timestamp}`;
             imageContainer.innerHTML = `
                 <p><strong>Verification Image:</strong></p>
-                <img src="${imageUrl}" alt="Verification Image" class="verification-image" />
+                <div style="display: flex; justify-content: center; align-items: center; margin-top: 10px;">
+                    <img src="${imageUrl}" 
+                         alt="Verification Image" 
+                         class="verification-thumbnail"
+                         data-full-image="${imageUrl}"
+                         style="max-width: 200px; max-height: 200px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s;" />
+                </div>
+                <p style="text-align: center; margin-top: 0.5rem; color: #666; font-size: 0.85rem;">Click to view full size</p>
             `;
+            
+            // Attach click handler for thumbnail
+            const thumbnail = imageContainer.querySelector('.verification-thumbnail');
+            if (thumbnail) {
+                thumbnail.addEventListener('click', () => {
+                    openImageViewer(imageUrl);
+                });
+            }
         }
 
         reviewSection!.style.display = 'block';
@@ -341,6 +356,42 @@ function showMessage(message: string, type: 'success' | 'error') {
         messageDiv.className = `message ${type}`;
         messageDiv.textContent = message;
         messageDiv.style.display = 'block';
+    }
+}
+
+// Image viewer functionality
+function openImageViewer(imageUrl: string) {
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('image-viewer-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'image-viewer-modal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 90vw; max-height: 90vh; padding: 0; background: transparent; box-shadow: none;">
+                <button class="close-btn" id="close-image-viewer-modal" style="position: absolute; top: 10px; right: 10px; z-index: 1001; background: rgba(0,0,0,0.7); color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; font-size: 24px; transition: background 0.2s;">&times;</button>
+                <img id="image-viewer-full-image" src="" alt="Full size image" style="max-width: 100%; max-height: 90vh; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);" />
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Attach close handlers
+        const closeBtn = document.getElementById('close-image-viewer-modal');
+        closeBtn?.addEventListener('click', () => {
+            modal?.classList.remove('active');
+        });
+        
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal && modal) {
+                modal.classList.remove('active');
+            }
+        });
+    }
+    
+    const fullImage = document.getElementById('image-viewer-full-image');
+    if (fullImage && modal) {
+        fullImage.setAttribute('src', imageUrl);
+        modal.classList.add('active');
     }
 }
 
