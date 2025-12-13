@@ -11,13 +11,23 @@ const action = urlParams.get('action'); // 'approve' or 'reject'
 const messageDiv = document.getElementById('message');
 const loginSection = document.getElementById('login-section');
 const reviewSection = document.getElementById('review-section');
+const usersListSection = document.getElementById('users-list-section');
+const adminMenubar = document.getElementById('admin-menubar');
 const loginForm = document.getElementById('admin-login-form') as HTMLFormElement;
 
 // Check if user is already logged in
 const token = localStorage.getItem('token');
 if (token) {
-    // User is logged in, show review section
-    loadUserDetails();
+    // User is logged in, show appropriate section
+    if (userId) {
+        // If userId in URL, show review section
+        showReviewPage();
+        loadUserDetails();
+    } else {
+        // Otherwise show users list
+        showUsersListPage();
+        loadAllUsers();
+    }
 } else {
     // Show login form
     loginSection!.style.display = 'block';
@@ -34,10 +44,20 @@ loginForm?.addEventListener('submit', async (e) => {
         localStorage.setItem('token', response.token);
         localStorage.setItem('userEmail', response.email);
         
-        // Hide login, show review
+        // Hide login, show appropriate section
         loginSection!.style.display = 'none';
-        showMessage('Login successful! Loading user details...', 'success');
-        await loadUserDetails();
+        document.getElementById('admin-dashboard-header')!.style.display = 'block';
+        adminMenubar!.style.display = 'flex';
+        
+        if (userId) {
+            showMessage('Login successful! Loading user details...', 'success');
+            showReviewPage();
+            await loadUserDetails();
+        } else {
+            showMessage('Login successful!', 'success');
+            showUsersListPage();
+            await loadAllUsers();
+        }
     } catch (error: any) {
         const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Invalid credentials';
         showMessage('Login failed: ' + errorMsg, 'error');
@@ -96,7 +116,7 @@ async function loadUserDetails() {
             }
         }
 
-        reviewSection!.style.display = 'block';
+        showReviewPage();
 
         // Set up button states based on URL action and current user status
         const approveBtn = document.getElementById('approve-btn') as HTMLButtonElement;
@@ -328,6 +348,163 @@ async function requestPicture() {
         });
     }
 }
+
+// Page navigation functions
+function showUsersListPage() {
+    reviewSection!.style.display = 'none';
+    usersListSection!.style.display = 'block';
+    document.getElementById('menubar-users')?.classList.add('active');
+    document.getElementById('menubar-review')?.classList.remove('active');
+    document.getElementById('admin-dashboard-header')!.style.display = 'block';
+}
+
+function showReviewPage() {
+    usersListSection!.style.display = 'none';
+    reviewSection!.style.display = 'block';
+    document.getElementById('menubar-review')?.classList.add('active');
+    document.getElementById('menubar-users')?.classList.remove('active');
+    document.getElementById('admin-dashboard-header')!.style.display = 'block';
+}
+
+// Menubar navigation
+document.getElementById('menubar-users')?.addEventListener('click', () => {
+    // Clear userId from URL if present
+    if (window.location.search.includes('userId')) {
+        window.history.pushState({}, '', window.location.pathname);
+    }
+    showUsersListPage();
+    loadAllUsers();
+});
+
+document.getElementById('menubar-review')?.addEventListener('click', () => {
+    // If no userId in URL, show message
+    if (!userId) {
+        showMessage('Please select a user from the users list to review', 'error');
+        return;
+    }
+    showReviewPage();
+    loadUserDetails();
+});
+
+// Back to users list button
+document.getElementById('back-to-users-btn')?.addEventListener('click', () => {
+    // Clear userId from URL
+    window.history.pushState({}, '', window.location.pathname);
+    showUsersListPage();
+    loadAllUsers();
+});
+
+// Load all users
+async function loadAllUsers(statusFilter?: string) {
+    const container = document.getElementById('users-list-container');
+    if (!container) return;
+    
+    container.innerHTML = '<p>Loading users...</p>';
+    
+    try {
+        const url = statusFilter 
+            ? `${API_BASE_URL}/admin/users?status=${statusFilter}`
+            : `${API_BASE_URL}/admin/users`;
+        
+        const token = localStorage.getItem('token');
+        const headers: any = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const response = await axios.get(url, { headers });
+        
+        const users = response.data;
+        
+        if (users.length === 0) {
+            container.innerHTML = '<p>No users found.</p>';
+            return;
+        }
+        
+        container.innerHTML = '<div class="users-list"></div>';
+        const usersList = container.querySelector('.users-list')!;
+        
+        users.forEach((user: any) => {
+            const timestamp = new Date().getTime();
+            const imageUrl = user.verificationImagePath 
+                ? `${API_BASE_URL}/files?path=${encodeURIComponent(user.verificationImagePath)}&t=${timestamp}`
+                : null;
+            
+            const userCard = document.createElement('div');
+            userCard.className = 'user-card';
+            userCard.innerHTML = `
+                <div class="user-card-header">
+                    <div>
+                        <div class="user-card-name">${user.firstName} ${user.lastName}</div>
+                        <div class="user-card-info">${user.email}</div>
+                    </div>
+                    ${getStatusBadge(user.status)}
+                </div>
+                <div class="user-card-info">
+                    <div><strong>Registered:</strong> ${new Date(user.createdAt).toLocaleDateString()}</div>
+                    <div><strong>Booked Spaces:</strong> ${user.bookedSpacesCount}</div>
+                </div>
+                ${imageUrl ? `
+                <div class="user-card-image">
+                    <img src="${imageUrl}" 
+                         alt="Verification Image" 
+                         class="verification-thumbnail"
+                         data-full-image="${imageUrl}"
+                         style="max-width: 150px; max-height: 150px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s;" 
+                         onclick="event.stopPropagation(); openImageViewer('${imageUrl}');" />
+                    <p style="text-align: center; margin-top: 0.5rem; color: #666; font-size: 0.75rem;">Click to view full size</p>
+                </div>
+                ` : '<div class="user-card-image"><p style="color: #999; font-size: 0.9rem;">No verification image</p></div>'}
+            `;
+            
+            // Make card clickable to navigate to review page
+            userCard.addEventListener('click', (e) => {
+                // Don't navigate if clicking on the image
+                if ((e.target as HTMLElement).closest('.verification-thumbnail')) {
+                    return;
+                }
+                window.location.href = `${window.location.pathname}?userId=${user.id}`;
+            });
+            
+            usersList.appendChild(userCard);
+        });
+    } catch (error: any) {
+        console.error('Error loading users:', error);
+        console.error('Error response:', error.response);
+        console.error('Error message:', error.message);
+        
+        if (error.response?.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('userEmail');
+            loginSection!.style.display = 'block';
+            usersListSection!.style.display = 'none';
+            adminMenubar!.style.display = 'none';
+            showMessage('Please log in to view users', 'error');
+        } else {
+            const errorMessage = error.response?.data?.error || 
+                                error.response?.data?.message || 
+                                error.message || 
+                                'Unknown error';
+            container.innerHTML = `<p style="color: #f44336;">Failed to load users: ${errorMessage}</p>`;
+            showMessage(`Failed to load users: ${errorMessage}`, 'error');
+        }
+    }
+}
+
+// Filter buttons
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        const target = e.target as HTMLButtonElement;
+        const status = target.getAttribute('data-status') || '';
+        
+        // Update active state
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        target.classList.add('active');
+        
+        // Load filtered users
+        loadAllUsers(status || undefined);
+    });
+});
 
 // Attach button handlers
 document.getElementById('approve-btn')?.addEventListener('click', approveUser);
