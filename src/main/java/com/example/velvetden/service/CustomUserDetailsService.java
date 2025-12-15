@@ -32,8 +32,8 @@ public class CustomUserDetailsService implements UserDetailsService {
             );
         } else {
             authorities = Collections.singletonList(
-                new SimpleGrantedAuthority("ROLE_USER")
-            );
+            new SimpleGrantedAuthority("ROLE_USER")
+        );
         }
         
         return new org.springframework.security.core.userdetails.User(

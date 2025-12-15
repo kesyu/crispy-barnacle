@@ -1,4 +1,4 @@
-import { eventApi, spaceApi, authApi, registrationApi, userApi, EventDTO, SpaceDTO, UserDetailsDTO } from './api';
+import { eventApi, spaceApi, authApi, registrationApi, userApi, EventDTO, SpaceDTO, UserDetailsDTO, isTokenExpired } from './api';
 
 export class App {
     private currentEvent: EventDTO | null = null;
@@ -17,13 +17,44 @@ export class App {
         }
         this.render();
         this.attachEventListeners();
+        this.setupSessionExpirationHandler();
+    }
+
+    private setupSessionExpirationHandler() {
+        // Listen for session expiration events from API interceptor
+        window.addEventListener('session-expired', () => {
+            // Update authentication state
+            this.isAuthenticated = false;
+            this.userEmail = null;
+            this.userDetails = null;
+            this.pendingBookingSpaceId = null;
+            
+            // Show message to user
+            this.showMessage(document.getElementById('app'), 'Your session has expired. Please log in again.', 'error');
+            
+            // Re-render to show login buttons
+            this.render();
+            this.attachEventListeners();
+        });
     }
 
     private checkAuth() {
         const token = localStorage.getItem('token');
         const email = localStorage.getItem('userEmail');
-        this.isAuthenticated = !!token;
-        this.userEmail = email;
+        
+        // Check if token exists and is not expired
+        if (token && !isTokenExpired(token)) {
+            this.isAuthenticated = true;
+            this.userEmail = email;
+        } else {
+            // Token is missing or expired, clear it
+            if (token) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('userEmail');
+            }
+            this.isAuthenticated = false;
+            this.userEmail = null;
+        }
     }
 
     private async loadEvent() {

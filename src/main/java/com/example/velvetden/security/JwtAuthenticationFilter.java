@@ -70,7 +70,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         // Default to ROLE_USER if no authorities found
                         grantedAuthorities = Collections.singletonList(
                             new SimpleGrantedAuthority("ROLE_USER")
-                        );
+                    );
                     }
 
                     // Create authentication token

@@ -75,6 +75,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/events/**", "/api/registration/**", "/api/auth/**").permitAll()
                 .requestMatchers("/api/admin/**").permitAll() // Admin endpoints are public (admin page handles auth)
                 .requestMatchers("/api/files/**").permitAll()
+                .requestMatchers("/api/space-templates/**").permitAll() // Space template endpoints are public
                 .requestMatchers("/api/users/me/**").authenticated() // User's own endpoints require authentication (must come before /api/users/*)
                 .requestMatchers("/api/users/*").permitAll() // Allow admin to fetch user by ID (matches /api/users/{userId} where userId is any single segment)
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
