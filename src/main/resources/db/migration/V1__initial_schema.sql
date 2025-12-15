@@ -30,14 +30,17 @@ CREATE TABLE events (
 );
 
 -- Create spaces table
+-- Spaces reference space_templates for reusable space details (name, color)
+-- A bookable space is identified by event_id + space_id
 CREATE TABLE spaces (
     id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL UNIQUE,
-    color VARCHAR(255) NOT NULL CHECK (color IN ('GREEN', 'YELLOW', 'ORANGE', 'BLUE', 'PURPLE', 'WHITE')),
+    space_template_id BIGINT NOT NULL,
     event_id BIGINT NOT NULL,
     user_id BIGINT,
+    CONSTRAINT fk_space_template FOREIGN KEY (space_template_id) REFERENCES space_templates(id) ON DELETE RESTRICT,
     CONSTRAINT fk_space_event FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
-    CONSTRAINT fk_space_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    CONSTRAINT fk_space_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT spaces_event_template_unique UNIQUE (event_id, space_template_id)
 );
 
 -- Create indexes for better query performance

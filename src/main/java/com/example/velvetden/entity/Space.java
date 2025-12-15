@@ -16,12 +16,9 @@ public class Space {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(nullable = false, unique = true)
-    private String name; // Dog name
-    
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private SpaceColor color;
+    @ManyToOne
+    @JoinColumn(name = "space_template_id", nullable = false)
+    private SpaceTemplate template; // Reusable space template
     
     @ManyToOne
     @JoinColumn(name = "event_id", nullable = false)
@@ -33,6 +30,15 @@ public class Space {
     
     public boolean isAvailable() {
         return user == null;
+    }
+    
+    // Convenience methods to access template properties
+    public String getName() {
+        return template != null ? template.getName() : null;
+    }
+    
+    public SpaceColor getColor() {
+        return template != null ? template.getColor() : null;
     }
     
     public enum SpaceColor {

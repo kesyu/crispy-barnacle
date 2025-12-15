@@ -2,8 +2,10 @@ package com.example.velvetden.config;
 
 import com.example.velvetden.entity.Event;
 import com.example.velvetden.entity.Space;
+import com.example.velvetden.entity.SpaceTemplate;
 import com.example.velvetden.entity.User;
 import com.example.velvetden.repository.EventRepository;
+import com.example.velvetden.repository.SpaceTemplateRepository;
 import com.example.velvetden.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -25,6 +27,7 @@ public class DataInitializer implements CommandLineRunner {
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SpaceTemplateRepository spaceTemplateRepository;
     
     @Override
     public void run(String... args) {
@@ -43,7 +46,7 @@ public class DataInitializer implements CommandLineRunner {
         event.setDateTime(LocalDateTime.now().plusDays(30));
         event.setUpcoming(true);
         
-        // Create 6 spaces with dog names and colors
+        // Get the 6 original space templates
         List<String> dogNames = Arrays.asList("Buddy", "Max", "Rocky", "Charlie", "Duke", "Cooper");
         List<Space.SpaceColor> colors = Arrays.asList(
             Space.SpaceColor.GREEN,
@@ -55,14 +58,26 @@ public class DataInitializer implements CommandLineRunner {
         );
         
         for (int i = 0; i < 6; i++) {
-            Space space = new Space();
-            space.setName(dogNames.get(i));
-            space.setColor(colors.get(i));
-            space.setEvent(event);
-            event.addSpace(space);
+            final String dogName = dogNames.get(i);
+            final Space.SpaceColor color = colors.get(i);
+            
+            // Find the space template by name and color
+            SpaceTemplate template = spaceTemplateRepository.findAll().stream()
+                .filter(t -> t.getName().equals(dogName) && t.getColor() == color)
+                .findFirst()
+                .orElse(null);
+            
+            if (template != null) {
+                Space space = new Space();
+                space.setTemplate(template);
+                space.setEvent(event);
+                event.addSpace(space);
+            }
         }
         
-        eventRepository.save(event);
+        if (!event.getSpaces().isEmpty()) {
+            eventRepository.save(event);
+        }
     }
     
     private void createDemoUsers() {
