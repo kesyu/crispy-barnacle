@@ -472,7 +472,36 @@
                         <p><strong>Email:</strong> <span id="user-email"></span></p>
                         <p><strong>Registration Date:</strong> <span id="user-date"></span></p>
                         <p><strong>Status:</strong> <span id="user-status"></span></p>
+                        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+                            <h4 style="margin-bottom: 15px;">Additional Information</h4>
+                            <div class="form-group">
+                                <label for="user-age">Age</label>
+                                <input type="number" id="user-age" min="0" placeholder="Enter age">
+                            </div>
+                            <div class="form-group">
+                                <label for="user-location">Location</label>
+                                <input type="text" id="user-location" placeholder="Enter location">
+                            </div>
+                            <div class="form-group">
+                                <label for="user-height">Height</label>
+                                <input type="text" id="user-height" placeholder="Enter height">
+                            </div>
+                            <div class="form-group">
+                                <label for="user-size">Size</label>
+                                <input type="text" id="user-size" placeholder="Enter size">
+                            </div>
+                        </div>
+                        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+                            <h4 style="margin-bottom: 15px;">Admin Comments</h4>
+                            <div class="form-group">
+                                <label for="user-admin-comments">Comments (Admin Only)</label>
+                                <textarea id="user-admin-comments" rows="4" placeholder="Enter admin comments"></textarea>
+                            </div>
+                        </div>
                         <div id="verification-image-container"></div>
+                        <div style="margin-top: 20px;">
+                            <button id="save-user-details-btn" class="btn btn-primary" style="width: auto; padding: 8px 20px;">Save Changes</button>
+                        </div>
                     </div>
                     <div class="action-buttons">
                         <button id="approve-btn" class="btn btn-approve">Approve User</button>

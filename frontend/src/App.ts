@@ -8,6 +8,7 @@ export class App {
     private userDetails: UserDetailsDTO | null = null;
     private pendingBookingSpaceId: number | null = null; // Store spaceId when user clicks to book while not logged in
     private isRegistering: boolean = false; // Prevent duplicate registration submissions
+    private originalProfileValues: { age: number | null; location: string | null; height: string | null; size: string | null } | null = null;
 
     async init() {
         this.checkAuth();
@@ -1561,6 +1562,28 @@ export class App {
                         <span class="detail-label">Booked Spaces:</span>
                         <span class="detail-value">${this.userDetails.bookedSpacesCount}</span>
                     </div>
+                    <div class="detail-row" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e0e0e0;">
+                        <span class="detail-label" style="display: block; margin-bottom: 1rem; font-weight: 600; font-size: 1.1rem;">Additional Information</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Age:</span>
+                        <input type="number" id="profile-age" min="0" placeholder="Enter age" value="${this.userDetails.age || ''}" style="padding: 0.5rem; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 1rem; width: 200px;">
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Location:</span>
+                        <input type="text" id="profile-location" placeholder="Enter location" value="${this.userDetails.location || ''}" style="padding: 0.5rem; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 1rem; width: 200px;">
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Height:</span>
+                        <input type="text" id="profile-height" placeholder="Enter height" value="${this.userDetails.height || ''}" style="padding: 0.5rem; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 1rem; width: 200px;">
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Size:</span>
+                        <input type="text" id="profile-size" placeholder="Enter size" value="${this.userDetails.size || ''}" style="padding: 0.5rem; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 1rem; width: 200px;">
+                    </div>
+                    <div class="detail-row" style="margin-top: 1rem;">
+                        <button class="btn btn-primary" id="save-profile-btn" style="width: auto; padding: 0.75rem 2rem;" disabled>Save Changes</button>
+                    </div>
                     ${this.userDetails.verificationImagePath || this.userDetails.status === 'PICTURE_REQUESTED' ? `
                     <div class="detail-row" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e0e0e0;">
                         <div style="width: 100%;">
@@ -1601,6 +1624,14 @@ export class App {
             </div>
         `;
         
+        // Store original values for change detection
+        this.originalProfileValues = {
+            age: this.userDetails.age,
+            location: this.userDetails.location,
+            height: this.userDetails.height,
+            size: this.userDetails.size
+        };
+        
         // Re-attach event listeners for elements that were just created/updated
         this.attachProfileContentListeners();
         
@@ -1613,6 +1644,48 @@ export class App {
                     this.openImageViewer(fullImageUrl);
                 }
             });
+        }
+        
+        // Initial check for changes (should be disabled initially)
+        this.updateSaveButtonState();
+    }
+    
+    private updateSaveButtonState() {
+        const saveBtn = document.getElementById('save-profile-btn') as HTMLButtonElement;
+        if (!saveBtn || !this.originalProfileValues) {
+            return;
+        }
+        
+        const ageInput = document.getElementById('profile-age') as HTMLInputElement;
+        const locationInput = document.getElementById('profile-location') as HTMLInputElement;
+        const heightInput = document.getElementById('profile-height') as HTMLInputElement;
+        const sizeInput = document.getElementById('profile-size') as HTMLInputElement;
+        
+        if (!ageInput || !locationInput || !heightInput || !sizeInput) {
+            return;
+        }
+        
+        // Get current values
+        const currentAge = ageInput.value ? parseInt(ageInput.value) : null;
+        const currentLocation = locationInput.value || null;
+        const currentHeight = heightInput.value || null;
+        const currentSize = sizeInput.value || null;
+        
+        // Check if any value has changed
+        const hasChanges = 
+            currentAge !== this.originalProfileValues.age ||
+            currentLocation !== this.originalProfileValues.location ||
+            currentHeight !== this.originalProfileValues.height ||
+            currentSize !== this.originalProfileValues.size;
+        
+        // Enable/disable button based on changes
+        saveBtn.disabled = !hasChanges;
+        if (hasChanges) {
+            saveBtn.style.opacity = '1';
+            saveBtn.style.cursor = 'pointer';
+        } else {
+            saveBtn.style.opacity = '0.6';
+            saveBtn.style.cursor = 'not-allowed';
         }
     }
     
@@ -1634,6 +1707,36 @@ export class App {
     }
 
     private attachProfileContentListeners() {
+        // Add change listeners to all input fields
+        const ageInput = document.getElementById('profile-age');
+        const locationInput = document.getElementById('profile-location');
+        const heightInput = document.getElementById('profile-height');
+        const sizeInput = document.getElementById('profile-size');
+        
+        [ageInput, locationInput, heightInput, sizeInput].forEach(input => {
+            if (input) {
+                input.addEventListener('input', () => {
+                    this.updateSaveButtonState();
+                });
+                input.addEventListener('change', () => {
+                    this.updateSaveButtonState();
+                });
+            }
+        });
+        
+        // Save profile button
+        const saveProfileBtn = document.getElementById('save-profile-btn');
+        if (saveProfileBtn) {
+            // Remove any existing listeners by cloning the node
+            const newSaveBtn = saveProfileBtn.cloneNode(true);
+            saveProfileBtn.parentNode?.replaceChild(newSaveBtn, saveProfileBtn);
+            
+            // Attach fresh listener to the new button
+            (newSaveBtn as HTMLElement).addEventListener('click', () => {
+                this.saveProfileChanges();
+            });
+        }
+        
         // Upload picture button (this is called after renderUserDetails updates the content)
         const uploadPictureBtn = document.getElementById('upload-picture-btn');
         if (uploadPictureBtn) {
@@ -1658,6 +1761,57 @@ export class App {
                     uploadModal.classList.add('active');
                 }
             });
+        }
+    }
+    
+    private async saveProfileChanges() {
+        const ageInput = document.getElementById('profile-age') as HTMLInputElement;
+        const locationInput = document.getElementById('profile-location') as HTMLInputElement;
+        const heightInput = document.getElementById('profile-height') as HTMLInputElement;
+        const sizeInput = document.getElementById('profile-size') as HTMLInputElement;
+        
+        if (!ageInput || !locationInput || !heightInput || !sizeInput) {
+            return;
+        }
+        
+        const updates: any = {};
+        
+        if (ageInput.value) {
+            const age = parseInt(ageInput.value);
+            if (!isNaN(age)) {
+                updates.age = age;
+            }
+        } else {
+            updates.age = null;
+        }
+        
+        updates.location = locationInput.value || null;
+        updates.height = heightInput.value || null;
+        updates.size = sizeInput.value || null;
+        
+        try {
+            this.userDetails = await userApi.updateProfile(updates);
+            
+            // Update original values to match the saved values
+            this.originalProfileValues = {
+                age: this.userDetails.age,
+                location: this.userDetails.location,
+                height: this.userDetails.height,
+                size: this.userDetails.size
+            };
+            
+            this.showMessage(document.getElementById('user-details-content'), 'Profile updated successfully!', 'success');
+            // Reload the profile view to show updated values
+            const contentDiv = document.getElementById('user-details-content');
+            if (contentDiv) {
+                this.renderUserDetails(contentDiv);
+            }
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.error || 
+                                error.response?.data?.message || 
+                                error.message || 
+                                'Unknown error';
+            this.showMessage(document.getElementById('user-details-content'), `Failed to update profile: ${errorMessage}`, 'error');
         }
     }
 

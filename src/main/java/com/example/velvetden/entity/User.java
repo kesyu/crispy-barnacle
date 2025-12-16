@@ -53,6 +53,21 @@ public class User {
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
     
+    @Column
+    private Integer age;
+    
+    @Column(length = 255)
+    private String location;
+    
+    @Column(length = 50)
+    private String height;
+    
+    @Column(length = 50)
+    private String size;
+    
+    @Column(columnDefinition = "TEXT")
+    private String adminComments; // Admin-only comments field
+    
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     @JsonIgnore // Prevent lazy loading issues during serialization
     private List<Space> bookedSpaces = new ArrayList<>();

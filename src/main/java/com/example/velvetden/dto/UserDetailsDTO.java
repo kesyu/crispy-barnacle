@@ -19,5 +19,10 @@ public class UserDetailsDTO {
     private LocalDateTime createdAt;
     private String verificationImagePath;
     private int bookedSpacesCount;
+    private Integer age;
+    private String location;
+    private String height;
+    private String size;
+    private String adminComments; // Admin-only field
 }
 

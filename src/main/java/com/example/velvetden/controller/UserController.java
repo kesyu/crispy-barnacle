@@ -49,12 +49,17 @@ public class UserController {
         dto.setCreatedAt(user.getCreatedAt());
         dto.setVerificationImagePath(user.getVerificationImagePath());
         dto.setBookedSpacesCount(bookedSpacesCount);
+        dto.setAge(user.getAge());
+        dto.setLocation(user.getLocation());
+        dto.setHeight(user.getHeight());
+        dto.setSize(user.getSize());
+        // Don't include adminComments for regular users
         
         return ResponseEntity.ok(dto);
     }
     
     @GetMapping("/{userId}")
-    public ResponseEntity<UserDetailsDTO> getUserById(@PathVariable Long userId) {
+    public ResponseEntity<UserDetailsDTO> getUserById(@PathVariable Long userId, Authentication authentication) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("User not found"));
         
@@ -70,6 +75,18 @@ public class UserController {
         dto.setCreatedAt(user.getCreatedAt());
         dto.setVerificationImagePath(user.getVerificationImagePath());
         dto.setBookedSpacesCount(bookedSpacesCount);
+        dto.setAge(user.getAge());
+        dto.setLocation(user.getLocation());
+        dto.setHeight(user.getHeight());
+        dto.setSize(user.getSize());
+        
+        // Only include adminComments if the requester is an admin
+        if (authentication != null && authentication.getPrincipal() instanceof User) {
+            User requester = (User) authentication.getPrincipal();
+            if (requester.getIsAdmin() != null && requester.getIsAdmin()) {
+                dto.setAdminComments(user.getAdminComments());
+            }
+        }
         
         return ResponseEntity.ok(dto);
     }
@@ -116,6 +133,71 @@ public class UserController {
             Map<String, Object> error = new HashMap<>();
             String errorMessage = e.getMessage() != null ? e.getMessage() : "Failed to upload picture";
             error.put("error", errorMessage);
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
+    
+    @PutMapping("/me")
+    public ResponseEntity<?> updateCurrentUser(@RequestBody Map<String, Object> updates, Authentication authentication) {
+        try {
+            User user = (User) authentication.getPrincipal();
+            
+            // Reload user from database to ensure we have the latest data
+            User currentUser = userRepository.findById(user.getId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+            
+            // Update allowed fields (users can only update their own age, location, height, size)
+            if (updates.containsKey("age")) {
+                Object ageValue = updates.get("age");
+                if (ageValue == null) {
+                    currentUser.setAge(null);
+                } else if (ageValue instanceof Number) {
+                    currentUser.setAge(((Number) ageValue).intValue());
+                } else if (ageValue instanceof String && !((String) ageValue).isEmpty()) {
+                    try {
+                        currentUser.setAge(Integer.parseInt((String) ageValue));
+                    } catch (NumberFormatException e) {
+                        // Invalid age, skip
+                    }
+                }
+            }
+            
+            if (updates.containsKey("location")) {
+                currentUser.setLocation((String) updates.get("location"));
+            }
+            
+            if (updates.containsKey("height")) {
+                currentUser.setHeight((String) updates.get("height"));
+            }
+            
+            if (updates.containsKey("size")) {
+                currentUser.setSize((String) updates.get("size"));
+            }
+            
+            userRepository.save(currentUser);
+            
+            // Return updated user DTO
+            int bookedSpacesCount = spaceRepository.findByUserId(currentUser.getId()).size();
+            UserDetailsDTO dto = new UserDetailsDTO();
+            dto.setId(currentUser.getId());
+            dto.setEmail(currentUser.getEmail());
+            dto.setFirstName(currentUser.getFirstName());
+            dto.setLastName(currentUser.getLastName());
+            dto.setStatus(currentUser.getStatus().name());
+            dto.setApproved(currentUser.isApproved());
+            dto.setCreatedAt(currentUser.getCreatedAt());
+            dto.setVerificationImagePath(currentUser.getVerificationImagePath());
+            dto.setBookedSpacesCount(bookedSpacesCount);
+            dto.setAge(currentUser.getAge());
+            dto.setLocation(currentUser.getLocation());
+            dto.setHeight(currentUser.getHeight());
+            dto.setSize(currentUser.getSize());
+            
+            return ResponseEntity.ok(dto);
+        } catch (Exception e) {
+            logger.error("Failed to update user profile: {}", authentication != null ? ((User) authentication.getPrincipal()).getEmail() : "unknown", e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "Failed to update profile: " + e.getMessage());
             return ResponseEntity.badRequest().body(error);
         }
     }

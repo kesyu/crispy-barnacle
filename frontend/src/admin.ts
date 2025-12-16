@@ -1,4 +1,4 @@
-import { authApi, spaceTemplateApi, SpaceTemplateDTO, isTokenExpired, eventApi } from './api';
+import { authApi, spaceTemplateApi, SpaceTemplateDTO, isTokenExpired, eventApi, adminApi } from './api';
 import axios from 'axios';
 
 const API_BASE_URL = '/api';
@@ -119,6 +119,13 @@ async function loadUserDetails(userIdParam?: string) {
         const statusElement = document.getElementById('user-status')!;
         const statusBadge = getStatusBadge(user.status);
         statusElement.innerHTML = statusBadge;
+        
+        // Populate editable fields
+        (document.getElementById('user-age') as HTMLInputElement).value = user.age || '';
+        (document.getElementById('user-location') as HTMLInputElement).value = user.location || '';
+        (document.getElementById('user-height') as HTMLInputElement).value = user.height || '';
+        (document.getElementById('user-size') as HTMLInputElement).value = user.size || '';
+        (document.getElementById('user-admin-comments') as HTMLTextAreaElement).value = user.adminComments || '';
 
         // Show verification image if available
         const imageContainer = document.getElementById('verification-image-container')!;
@@ -485,6 +492,10 @@ async function loadAllUsers(statusFilter?: string) {
                     <tr>
                         <th>Name</th>
                         <th>Email</th>
+                        <th>Age</th>
+                        <th>Location</th>
+                        <th>Height</th>
+                        <th>Size</th>
                         <th>Status</th>
                         <th>Registered</th>
                         <th>Booked Spaces</th>
@@ -508,6 +519,10 @@ async function loadAllUsers(statusFilter?: string) {
             userRow.innerHTML = `
                 <td class="user-name">${user.firstName} ${user.lastName}</td>
                 <td class="user-email">${user.email}</td>
+                <td class="user-age">${user.age || '-'}</td>
+                <td class="user-location">${user.location || '-'}</td>
+                <td class="user-height">${user.height || '-'}</td>
+                <td class="user-size">${user.size || '-'}</td>
                 <td class="user-status-cell">${getStatusBadge(user.status)}</td>
                 <td class="user-date">${new Date(user.createdAt).toLocaleDateString()}</td>
                 <td class="user-spaces">${user.bookedSpacesCount}</td>
@@ -925,10 +940,57 @@ document.getElementById('create-event-form')?.addEventListener('submit', async (
     }
 });
 
+// Save user details
+async function saveUserDetails() {
+    const userIdToUse = currentReviewUserId || userId;
+    if (!userIdToUse) {
+        showMessage('No user ID provided', 'error');
+        return;
+    }
+    
+    const ageInput = document.getElementById('user-age') as HTMLInputElement;
+    const locationInput = document.getElementById('user-location') as HTMLInputElement;
+    const heightInput = document.getElementById('user-height') as HTMLInputElement;
+    const sizeInput = document.getElementById('user-size') as HTMLInputElement;
+    const adminCommentsInput = document.getElementById('user-admin-comments') as HTMLTextAreaElement;
+    
+    const updates: any = {};
+    
+    if (ageInput.value) {
+        const age = parseInt(ageInput.value);
+        if (!isNaN(age)) {
+            updates.age = age;
+        }
+    } else {
+        updates.age = null;
+    }
+    
+    updates.location = locationInput.value || null;
+    updates.height = heightInput.value || null;
+    updates.size = sizeInput.value || null;
+    updates.adminComments = adminCommentsInput.value || null;
+    
+    try {
+        await adminApi.updateUser(parseInt(userIdToUse), updates);
+        showMessage('User details updated successfully', 'success');
+        // Reload user details to reflect changes
+        await loadUserDetails(userIdToUse);
+        // Reload users list to reflect changes
+        loadAllUsers();
+    } catch (error: any) {
+        const errorMessage = error.response?.data?.error || 
+                            error.response?.data?.message || 
+                            error.message || 
+                            'Unknown error';
+        showMessage(`Failed to update user: ${errorMessage}`, 'error');
+    }
+}
+
 // Attach button handlers
 document.getElementById('approve-btn')?.addEventListener('click', approveUser);
 document.getElementById('reject-btn')?.addEventListener('click', rejectUser);
 document.getElementById('request-picture-btn')?.addEventListener('click', requestPicture);
+document.getElementById('save-user-details-btn')?.addEventListener('click', saveUserDetails);
 
 function getStatusBadge(status: string): string {
     const upperStatus = status?.toUpperCase() || '';

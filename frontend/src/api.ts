@@ -152,6 +152,11 @@ export interface UserDetailsDTO {
     createdAt: string;
     verificationImagePath: string | null;
     bookedSpacesCount: number;
+    age: number | null;
+    location: string | null;
+    height: string | null;
+    size: string | null;
+    adminComments: string | null;
 }
 
 export interface SpaceTemplateDTO {
@@ -234,11 +239,22 @@ export const userApi = {
             throw error;
         }
     },
+    updateProfile: async (updates: { age?: number | null; location?: string | null; height?: string | null; size?: string | null }): Promise<UserDetailsDTO> => {
+        const response = await api.put<UserDetailsDTO>('/users/me', updates);
+        return response.data;
+    },
 };
 
 export const spaceTemplateApi = {
     getAllTemplates: async (): Promise<SpaceTemplateDTO[]> => {
         const response = await api.get<SpaceTemplateDTO[]>('/space-templates');
+        return response.data;
+    },
+};
+
+export const adminApi = {
+    updateUser: async (userId: number, updates: { age?: number | null; location?: string | null; height?: string | null; size?: string | null; adminComments?: string | null }): Promise<UserDetailsDTO> => {
+        const response = await api.put<UserDetailsDTO>(`/admin/users/${userId}`, updates);
         return response.data;
     },
 };
