@@ -184,10 +184,15 @@ export class App {
             minute: '2-digit',
         });
 
+        const cancelledBadge = this.currentEvent.cancelled 
+            ? '<div style="background: #f44336; color: white; padding: 8px 16px; border-radius: 8px; font-weight: 600; margin-bottom: 1rem; display: inline-block;">Event Cancelled</div>'
+            : '';
+        
         return `
             <div class="event-card">
                 <div class="event-info">
-                    <h2>Upcoming Event</h2>
+                    <h2>${this.currentEvent.cancelled ? 'Cancelled Event' : 'Upcoming Event'}</h2>
+                    ${cancelledBadge}
                     <div class="event-details">
                         <div class="event-detail">
                             <span>📍</span>
@@ -202,17 +207,21 @@ export class App {
                             <span><strong>Time:</strong> ${formattedTime}</span>
                         </div>
                     </div>
+                    ${!this.currentEvent.cancelled ? `
                     <p style="margin-top: 1rem; font-size: 1.1rem;">
                         <strong>Available Spaces:</strong> ${this.currentEvent.availableSpacesCount} / ${this.currentEvent.totalSpacesCount}
                     </p>
+                    ` : ''}
                 </div>
 
+                ${!this.currentEvent.cancelled ? `
                 <div class="spaces-container">
                     <h3>Event Spaces</h3>
                     <div class="spaces-grid">
                         ${this.currentEvent.spaces.map(space => this.renderSpace(space)).join('')}
                     </div>
                 </div>
+                ` : ''}
             </div>
         `;
     }

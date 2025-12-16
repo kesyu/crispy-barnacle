@@ -32,6 +32,9 @@ public class Event {
     @Column(nullable = false)
     private boolean isUpcoming = true;
     
+    @Column(nullable = false)
+    private boolean cancelled = false;
+    
     public void addSpace(Space space) {
         spaces.add(space);
         space.setEvent(this);

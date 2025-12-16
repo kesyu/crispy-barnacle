@@ -7,6 +7,5 @@ public class SpaceTemplateDTO {
     private Long id;
     private String name;
     private String color;
-    private String description;
 }
 

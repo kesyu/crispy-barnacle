@@ -40,7 +40,6 @@ public class SpaceTemplateService {
         dto.setId(template.getId());
         dto.setName(template.getName());
         dto.setColor(template.getColor().name());
-        dto.setDescription(template.getDescription());
         return dto;
     }
 }

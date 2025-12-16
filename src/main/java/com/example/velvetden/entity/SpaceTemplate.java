@@ -22,8 +22,5 @@ public class SpaceTemplate {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Space.SpaceColor color;
-    
-    @Column(length = 500)
-    private String description; // Optional description/details
 }
 

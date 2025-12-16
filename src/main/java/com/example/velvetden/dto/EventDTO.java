@@ -17,6 +17,7 @@ public class EventDTO {
     private List<SpaceDTO> spaces;
     private int availableSpacesCount;
     private int totalSpacesCount;
+    private boolean cancelled;
 }
 
 

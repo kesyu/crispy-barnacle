@@ -119,6 +119,7 @@ export interface EventDTO {
     spaces: SpaceDTO[];
     availableSpacesCount: number;
     totalSpacesCount: number;
+    cancelled: boolean;
 }
 
 export interface SpaceDTO {
@@ -157,12 +158,27 @@ export interface SpaceTemplateDTO {
     id: number;
     name: string;
     color: string;
-    description: string | null;
 }
 
 export const eventApi = {
     getUpcomingEvent: async (): Promise<EventDTO> => {
         const response = await api.get<EventDTO>('/events/upcoming');
+        return response.data;
+    },
+    getAllEvents: async (): Promise<EventDTO[]> => {
+        const response = await api.get<EventDTO[]>('/events/all');
+        return response.data;
+    },
+    createEvent: async (city: string, dateTime: string, spaceTemplateIds: number[]): Promise<EventDTO> => {
+        const response = await api.post<EventDTO>('/events', {
+            city,
+            dateTime,
+            spaceTemplateIds
+        });
+        return response.data;
+    },
+    cancelEvent: async (eventId: number): Promise<EventDTO> => {
+        const response = await api.put<EventDTO>(`/events/${eventId}/cancel`);
         return response.data;
     },
 };

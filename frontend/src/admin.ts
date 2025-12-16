@@ -1,4 +1,4 @@
-import { authApi, spaceTemplateApi, SpaceTemplateDTO, isTokenExpired } from './api';
+import { authApi, spaceTemplateApi, SpaceTemplateDTO, isTokenExpired, eventApi } from './api';
 import axios from 'axios';
 
 const API_BASE_URL = '/api';
@@ -570,13 +570,27 @@ async function loadAllEvents() {
         events.forEach((event: any) => {
             const eventDate = new Date(event.dateTime);
             const isPast = eventDate < new Date();
+            const isUpcoming = !isPast;
             const formattedDate = eventDate.toLocaleString('en-US', {
                 year: 'numeric',
-                month: 'long',
+                month: 'short',
                 day: 'numeric',
-                hour: '2-digit',
+                hour: 'numeric',
                 minute: '2-digit'
             });
+            
+            let statusBadge = '';
+            if (event.cancelled) {
+                statusBadge = '<span class="event-card-badge cancelled">Cancelled</span>';
+            } else if (isPast) {
+                statusBadge = '<span class="event-card-badge past">Past</span>';
+            } else {
+                statusBadge = '<span class="event-card-badge upcoming">Upcoming</span>';
+            }
+            
+            const cancelButton = !event.cancelled && isUpcoming 
+                ? `<button class="btn cancel-event-btn" data-event-id="${event.id}" style="background: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; margin-top: 10px;">Cancel Event</button>`
+                : '';
             
             const eventCard = document.createElement('div');
             eventCard.className = 'event-card';
@@ -586,18 +600,23 @@ async function loadAllEvents() {
                         <div class="event-card-city">${event.city}</div>
                         <div class="event-card-date">${formattedDate}</div>
                     </div>
-                    <span class="event-card-badge ${isPast ? 'past' : 'upcoming'}">
-                        ${isPast ? 'Past' : 'Upcoming'}
-                    </span>
+                    ${statusBadge}
                 </div>
                 <div class="event-card-info">
                     <div><strong>Total Spaces:</strong> ${event.totalSpacesCount}</div>
                     <div><strong>Available Spaces:</strong> ${event.availableSpacesCount}</div>
                     <div><strong>Booked Spaces:</strong> ${event.totalSpacesCount - event.availableSpacesCount}</div>
                 </div>
+                ${cancelButton}
             `;
             
             eventsList.appendChild(eventCard);
+            
+            // Add cancel button event listener
+            if (cancelButton) {
+                const cancelBtn = eventCard.querySelector('.cancel-event-btn');
+                cancelBtn?.addEventListener('click', () => cancelEvent(event.id));
+            }
         });
     } catch (error: any) {
         console.error('Error loading events:', error);
@@ -607,6 +626,27 @@ async function loadAllEvents() {
                             'Unknown error';
         container.innerHTML = `<p style="color: #f44336;">Failed to load events: ${errorMessage}</p>`;
         showMessage(`Failed to load events: ${errorMessage}`, 'error');
+    }
+}
+
+// Cancel event
+async function cancelEvent(eventId: number) {
+    if (!confirm('Are you sure you want to cancel this event? This action cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        await eventApi.cancelEvent(eventId);
+        showMessage('Event cancelled successfully', 'success');
+        // Reload events list
+        loadAllEvents();
+    } catch (error: any) {
+        console.error('Error cancelling event:', error);
+        const errorMessage = error.response?.data?.error || 
+                            error.response?.data?.message || 
+                            error.message || 
+                            'Unknown error';
+        showMessage(`Failed to cancel event: ${errorMessage}`, 'error');
     }
 }
 
@@ -724,26 +764,13 @@ function renderSpaceTemplates(templates: SpaceTemplateDTO[]) {
         colorBadge.className = 'space-color-badge';
         colorBadge.style.backgroundColor = getColorValue(template.color);
         
-        // Name and description
-        const textContainer = document.createElement('div');
-        textContainer.style.cssText = 'display: flex; flex-direction: column;';
-        
+        // Name
         const nameSpan = document.createElement('span');
         nameSpan.textContent = template.name;
         nameSpan.style.cssText = 'font-weight: 500;';
         
-        if (template.description) {
-            const descSpan = document.createElement('span');
-            descSpan.textContent = template.description;
-            descSpan.style.cssText = 'font-size: 0.85rem; color: #666;';
-            textContainer.appendChild(nameSpan);
-            textContainer.appendChild(descSpan);
-        } else {
-            textContainer.appendChild(nameSpan);
-        }
-        
         label.appendChild(colorBadge);
-        label.appendChild(textContainer);
+        label.appendChild(nameSpan);
         
         checkboxContainer.appendChild(checkbox);
         checkboxContainer.appendChild(label);

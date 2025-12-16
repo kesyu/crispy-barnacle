@@ -2,9 +2,11 @@ package com.example.velvetden.controller;
 
 import com.example.velvetden.dto.CreateEventRequestDTO;
 import com.example.velvetden.dto.EventDTO;
+import com.example.velvetden.entity.User;
 import com.example.velvetden.service.EventService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -44,6 +46,32 @@ public class EventController {
         } catch (Exception e) {
             Map<String, Object> error = new HashMap<>();
             error.put("error", "Failed to create event: " + e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
+    
+    @PutMapping("/{eventId}/cancel")
+    public ResponseEntity<?> cancelEvent(@PathVariable Long eventId, Authentication authentication) {
+        try {
+            // Check if user is authenticated and is an admin
+            if (authentication == null || authentication.getPrincipal() == null) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("error", "Authentication required");
+                return ResponseEntity.status(403).body(error);
+            }
+            
+            User user = (User) authentication.getPrincipal();
+            if (user.getIsAdmin() == null || !user.getIsAdmin()) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("error", "Admin access required");
+                return ResponseEntity.status(403).body(error);
+            }
+            
+            EventDTO event = eventService.cancelEvent(eventId);
+            return ResponseEntity.ok(event);
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "Failed to cancel event: " + e.getMessage());
             return ResponseEntity.badRequest().body(error);
         }
     }

@@ -2,8 +2,7 @@
 CREATE TABLE IF NOT EXISTS space_templates (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
-    color VARCHAR(255) NOT NULL CHECK (color IN ('GREEN', 'YELLOW', 'ORANGE', 'BLUE', 'PURPLE', 'WHITE')),
-    description VARCHAR(500)
+    color VARCHAR(255) NOT NULL CHECK (color IN ('GREEN', 'YELLOW', 'ORANGE', 'BLUE', 'PURPLE', 'WHITE'))
 );
 
 -- Create index for better query performance (only if it doesn't exist)
@@ -13,22 +12,16 @@ CREATE INDEX IF NOT EXISTS idx_space_templates_name ON space_templates(name);
 GRANT ALL PRIVILEGES ON TABLE space_templates TO velvetden;
 GRANT ALL PRIVILEGES ON SEQUENCE space_templates_id_seq TO velvetden;
 
--- Insert some default space templates (only if they don't already exist)
-INSERT INTO space_templates (name, color, description) 
+-- Insert the original 6 space templates from the demo event (only if they don't already exist)
+INSERT INTO space_templates (name, color) 
 SELECT * FROM (VALUES
-    ('Buddy', 'GREEN', 'Friendly and energetic'),
-    ('Max', 'YELLOW', 'Loyal companion'),
-    ('Rocky', 'ORANGE', 'Adventurous spirit'),
-    ('Charlie', 'BLUE', 'Playful and fun'),
-    ('Duke', 'PURPLE', 'Noble and calm'),
-    ('Cooper', 'WHITE', 'Gentle and kind'),
-    ('Bella', 'GREEN', 'Beautiful and graceful'),
-    ('Luna', 'YELLOW', 'Bright and cheerful'),
-    ('Milo', 'ORANGE', 'Curious explorer'),
-    ('Lucy', 'BLUE', 'Sweet and loving'),
-    ('Bailey', 'PURPLE', 'Gentle giant'),
-    ('Sadie', 'WHITE', 'Elegant and refined')
-) AS v(name, color, description)
+    ('Buddy', 'GREEN'),
+    ('Max', 'YELLOW'),
+    ('Rocky', 'ORANGE'),
+    ('Charlie', 'BLUE'),
+    ('Duke', 'PURPLE'),
+    ('Cooper', 'WHITE')
+) AS v(name, color)
 WHERE NOT EXISTS (
     SELECT 1 FROM space_templates WHERE space_templates.name = v.name
 );

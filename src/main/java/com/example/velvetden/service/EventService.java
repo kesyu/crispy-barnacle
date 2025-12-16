@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,11 +24,47 @@ public class EventService {
     
     @Transactional(readOnly = true)
     public EventDTO getUpcomingEvent() {
-        Event event = eventRepository
-            .findFirstByIsUpcomingTrueAndDateTimeAfterOrderByDateTimeAsc(LocalDateTime.now())
-            .orElseThrow(() -> new RuntimeException("No upcoming event found"));
+        LocalDateTime now = LocalDateTime.now();
         
-        return convertToDTO(event);
+        // Get the earliest cancelled upcoming event (before its date/time passes)
+        // For cancelled events, we check dateTime only (ignore isUpcoming flag)
+        Optional<Event> cancelledEvent = eventRepository
+            .findFirstCancelledEventAfter(now);
+        
+        // Get the earliest non-cancelled upcoming event
+        Optional<Event> nonCancelledEvent = eventRepository
+            .findFirstByIsUpcomingTrueAndCancelledFalseAndDateTimeAfterOrderByDateTimeAsc(now);
+        
+        // If both exist, prioritize non-cancelled event if they're at the same date/time
+        // Otherwise, show whichever is earlier
+        if (cancelledEvent.isPresent() && nonCancelledEvent.isPresent()) {
+            Event cancelled = cancelledEvent.get();
+            Event nonCancelled = nonCancelledEvent.get();
+            
+            // If they're at the same date/time, prioritize non-cancelled
+            if (cancelled.getDateTime().equals(nonCancelled.getDateTime())) {
+                return convertToDTO(nonCancelled);
+            }
+            
+            // Otherwise, show whichever is earlier
+            if (cancelled.getDateTime().isBefore(nonCancelled.getDateTime())) {
+                return convertToDTO(cancelled);
+            } else {
+                return convertToDTO(nonCancelled);
+            }
+        }
+        
+        // If only cancelled event exists, show it
+        if (cancelledEvent.isPresent()) {
+            return convertToDTO(cancelledEvent.get());
+        }
+        
+        // If only non-cancelled event exists, show it
+        if (nonCancelledEvent.isPresent()) {
+            return convertToDTO(nonCancelledEvent.get());
+        }
+        
+        throw new RuntimeException("No upcoming event found");
     }
     
     private EventDTO convertToDTO(Event event) {
@@ -42,6 +79,7 @@ public class EventService {
         dto.setSpaces(spaceDTOs);
         dto.setAvailableSpacesCount(event.getAvailableSpacesCount());
         dto.setTotalSpacesCount(event.getTotalSpacesCount());
+        dto.setCancelled(event.isCancelled());
         
         return dto;
     }
@@ -95,6 +133,16 @@ public class EventService {
             event.addSpace(space);
         }
         
+        Event savedEvent = eventRepository.save(event);
+        return convertToDTO(savedEvent);
+    }
+    
+    @Transactional
+    public EventDTO cancelEvent(Long eventId) {
+        Event event = eventRepository.findById(eventId)
+            .orElseThrow(() -> new RuntimeException("Event not found: " + eventId));
+        
+        event.setCancelled(true);
         Event savedEvent = eventRepository.save(event);
         return convertToDTO(savedEvent);
     }
