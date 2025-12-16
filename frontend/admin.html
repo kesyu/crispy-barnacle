@@ -200,43 +200,62 @@
             background: #1565c0;
             border-color: #1565c0;
         }
-        .users-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             margin-top: 20px;
         }
-        .user-card {
-            background: white;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 20px;
+        .users-table thead {
+            background: #f5f5f5;
+        }
+        .users-table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+            font-size: 0.9rem;
+        }
+        .users-table tbody tr {
+            border-bottom: 1px solid #e0e0e0;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: background-color 0.2s;
+            height: 80px;
         }
-        .user-card:hover {
-            border-color: #667eea;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
-            transform: translateY(-2px);
+        .users-table tbody tr:hover {
+            background-color: #f9f9f9;
         }
-        .user-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 15px;
+        .users-table tbody tr:last-child {
+            border-bottom: none;
         }
-        .user-card-name {
-            font-size: 1.2rem;
+        .users-table td {
+            padding: 12px 16px;
+            vertical-align: middle;
+            font-size: 0.9rem;
+            height: 80px;
+        }
+        .user-name {
             font-weight: 600;
             color: #333;
         }
-        .user-card-info {
-            margin: 10px 0;
-            font-size: 0.9rem;
+        .user-email {
             color: #666;
         }
-        .user-card-image {
-            margin-top: 15px;
+        .user-status-cell {
+            text-align: center;
+        }
+        .user-date {
+            color: #666;
+        }
+        .user-spaces {
+            text-align: center;
+            color: #666;
+        }
+        .user-image-cell {
             text-align: center;
         }
         #spaces-container {
@@ -281,6 +300,10 @@
         }
         #add-event-modal .modal-content {
             max-width: 600px;
+            width: 90%;
+        }
+        #review-modal .modal-content {
+            max-width: 700px;
             width: 90%;
         }
         .events-list {
@@ -437,25 +460,25 @@
                     </form>
                 </div>
             </div>
-            <div id="review-section" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="margin: 0;">Review User Registration</h2>
-                    <button id="back-to-users-btn" class="btn" style="background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; white-space: nowrap;">
-                        ← Back to Users List
-                    </button>
-                </div>
-                <div class="user-details" id="user-details">
-                    <h3>User Details</h3>
-                    <p><strong>Name:</strong> <span id="user-name"></span></p>
-                    <p><strong>Email:</strong> <span id="user-email"></span></p>
-                    <p><strong>Registration Date:</strong> <span id="user-date"></span></p>
-                    <p><strong>Status:</strong> <span id="user-status"></span></p>
-                    <div id="verification-image-container"></div>
-                </div>
-                <div class="action-buttons">
-                    <button id="approve-btn" class="btn btn-approve">Approve User</button>
-                    <button id="reject-btn" class="btn btn-reject">Reject User</button>
-                    <button id="request-picture-btn" class="btn btn-request-picture">Request New Picture</button>
+            <div id="review-modal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Review User Registration</h2>
+                        <button class="close-btn" id="close-review-modal">&times;</button>
+                    </div>
+                    <div class="user-details" id="user-details">
+                        <h3>User Details</h3>
+                        <p><strong>Name:</strong> <span id="user-name"></span></p>
+                        <p><strong>Email:</strong> <span id="user-email"></span></p>
+                        <p><strong>Registration Date:</strong> <span id="user-date"></span></p>
+                        <p><strong>Status:</strong> <span id="user-status"></span></p>
+                        <div id="verification-image-container"></div>
+                    </div>
+                    <div class="action-buttons">
+                        <button id="approve-btn" class="btn btn-approve">Approve User</button>
+                        <button id="reject-btn" class="btn btn-reject">Reject User</button>
+                        <button id="request-picture-btn" class="btn btn-request-picture">Request New Picture</button>
+                    </div>
                 </div>
             </div>
         </div>

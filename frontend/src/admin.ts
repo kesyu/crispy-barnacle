@@ -10,11 +10,12 @@ const action = urlParams.get('action'); // 'approve' or 'reject'
 
 const messageDiv = document.getElementById('message');
 const loginSection = document.getElementById('login-section');
-const reviewSection = document.getElementById('review-section');
+const reviewModal = document.getElementById('review-modal');
 const usersListSection = document.getElementById('users-list-section');
 const eventsSection = document.getElementById('events-section');
 const adminMenubar = document.getElementById('admin-menubar');
 const loginForm = document.getElementById('admin-login-form') as HTMLFormElement;
+let currentReviewUserId: string | null = null;
 
 // Check if user is already logged in and token is valid
 const token = localStorage.getItem('token');
@@ -24,9 +25,8 @@ if (token && !isTokenExpired(token)) {
     document.getElementById('admin-dashboard-header')!.style.display = 'block';
     
     if (userId) {
-        // If userId in URL, show review section
-        showReviewPage();
-        loadUserDetails();
+        // If userId in URL, open review modal
+        openReviewModal(userId);
     } else {
         // Otherwise show users list
         showUsersListPage();
@@ -78,15 +78,33 @@ loginForm?.addEventListener('submit', async (e) => {
     }
 });
 
+// Open review modal
+async function openReviewModal(userId: string) {
+    currentReviewUserId = userId;
+    if (reviewModal) {
+        reviewModal.classList.add('active');
+        await loadUserDetails(userId);
+    }
+}
+
+// Close review modal
+function closeReviewModal() {
+    if (reviewModal) {
+        reviewModal.classList.remove('active');
+        currentReviewUserId = null;
+    }
+}
+
 // Load user details for review
-async function loadUserDetails() {
-    if (!userId) {
+async function loadUserDetails(userIdParam?: string) {
+    const userIdToUse = userIdParam || userId || currentReviewUserId;
+    if (!userIdToUse) {
         showMessage('No user ID provided', 'error');
         return;
     }
 
     try {
-        const response = await axios.get(`${API_BASE_URL}/users/${userId}`, {
+        const response = await axios.get(`${API_BASE_URL}/users/${userIdToUse}`, {
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
@@ -128,8 +146,6 @@ async function loadUserDetails() {
                 });
             }
         }
-
-        showReviewPage();
 
         // Set up button states based on URL action and current user status
         const approveBtn = document.getElementById('approve-btn') as HTMLButtonElement;
@@ -203,7 +219,7 @@ async function loadUserDetails() {
             localStorage.removeItem('token');
             localStorage.removeItem('userEmail');
             loginSection!.style.display = 'block';
-            reviewSection!.style.display = 'none';
+            closeReviewModal();
             showMessage('Please log in to review this user', 'error');
         } else {
             showMessage('Failed to load user details: ' + (error.response?.data?.error || 'Unknown error'), 'error');
@@ -213,11 +229,12 @@ async function loadUserDetails() {
 
 // Approve user
 async function approveUser() {
-    if (!userId) return;
+    const userIdToUse = currentReviewUserId || userId;
+    if (!userIdToUse) return;
 
     try {
         const response = await axios.post(
-            `${API_BASE_URL}/admin/users/${userId}/approve`,
+            `${API_BASE_URL}/admin/users/${userIdToUse}/approve`,
             {},
             {
                 headers: {
@@ -248,6 +265,8 @@ async function approveUser() {
             requestPictureBtn.style.opacity = '1';
             requestPictureBtn.style.cursor = 'pointer';
         }
+        // Reload users list to reflect the change
+        loadAllUsers();
     } catch (error: any) {
         showMessage('Failed to approve user: ' + (error.response?.data?.error || 'Unknown error'), 'error');
     }
@@ -255,11 +274,12 @@ async function approveUser() {
 
 // Reject user
 async function rejectUser() {
-    if (!userId) return;
+    const userIdToUse = currentReviewUserId || userId;
+    if (!userIdToUse) return;
 
     try {
         const response = await axios.post(
-            `${API_BASE_URL}/admin/users/${userId}/reject`,
+            `${API_BASE_URL}/admin/users/${userIdToUse}/reject`,
             {},
             {
                 headers: {
@@ -290,6 +310,8 @@ async function rejectUser() {
             requestPictureBtn.style.opacity = '1';
             requestPictureBtn.style.cursor = 'pointer';
         }
+        // Reload users list to reflect the change
+        loadAllUsers();
     } catch (error: any) {
         showMessage('Failed to reject user: ' + (error.response?.data?.error || 'Unknown error'), 'error');
     }
@@ -297,7 +319,8 @@ async function rejectUser() {
 
 // Request new picture
 async function requestPicture() {
-    if (!userId) return;
+    const userIdToUse = currentReviewUserId || userId;
+    if (!userIdToUse) return;
 
     const approveBtn = document.getElementById('approve-btn') as HTMLButtonElement;
     const rejectBtn = document.getElementById('reject-btn') as HTMLButtonElement;
@@ -314,7 +337,7 @@ async function requestPicture() {
 
     try {
         const response = await axios.post(
-            `${API_BASE_URL}/admin/users/${userId}/request-picture`,
+            `${API_BASE_URL}/admin/users/${userIdToUse}/request-picture`,
             {},
             {
                 headers: {
@@ -343,6 +366,8 @@ async function requestPicture() {
             requestPictureBtn.style.opacity = '0.5';
             requestPictureBtn.style.cursor = 'not-allowed';
         }
+        // Reload users list to reflect the change
+        loadAllUsers();
     } catch (error: any) {
         console.error('Request picture error:', error);
         console.error('Error response:', error.response);
@@ -364,7 +389,6 @@ async function requestPicture() {
 
 // Page navigation functions
 function showUsersListPage() {
-    reviewSection!.style.display = 'none';
     eventsSection!.style.display = 'none';
     usersListSection!.style.display = 'block';
     document.getElementById('menubar-users')?.classList.add('active');
@@ -374,7 +398,6 @@ function showUsersListPage() {
 }
 
 function showEventsPage() {
-    reviewSection!.style.display = 'none';
     usersListSection!.style.display = 'none';
     eventsSection!.style.display = 'block';
     document.getElementById('menubar-events')?.classList.add('active');
@@ -385,13 +408,11 @@ function showEventsPage() {
 }
 
 function showReviewPage() {
-    usersListSection!.style.display = 'none';
-    eventsSection!.style.display = 'none';
-    reviewSection!.style.display = 'block';
-    document.getElementById('menubar-review')?.classList.add('active');
-    document.getElementById('menubar-users')?.classList.remove('active');
-    document.getElementById('menubar-events')?.classList.remove('active');
-    document.getElementById('admin-dashboard-header')!.style.display = 'block';
+    // This function is kept for backward compatibility with URL-based navigation
+    // But now we use the modal instead
+    if (userId) {
+        openReviewModal(userId);
+    }
 }
 
 // Menubar navigation
@@ -418,16 +439,17 @@ document.getElementById('menubar-review')?.addEventListener('click', () => {
         showMessage('Please select a user from the users list to review', 'error');
         return;
     }
-    showReviewPage();
-    loadUserDetails();
+    openReviewModal(userId);
 });
 
-// Back to users list button
-document.getElementById('back-to-users-btn')?.addEventListener('click', () => {
-    // Clear userId from URL
-    window.history.pushState({}, '', window.location.pathname);
-    showUsersListPage();
-    loadAllUsers();
+// Close review modal handlers
+document.getElementById('close-review-modal')?.addEventListener('click', closeReviewModal);
+
+// Close modal when clicking outside
+document.getElementById('review-modal')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('review-modal')) {
+        closeReviewModal();
+    }
 });
 
 // Load all users
@@ -457,7 +479,22 @@ async function loadAllUsers(statusFilter?: string) {
             return;
         }
         
-        container.innerHTML = '<div class="users-list"></div>';
+        container.innerHTML = `
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Registered</th>
+                        <th>Booked Spaces</th>
+                        <th>Verification Image</th>
+                    </tr>
+                </thead>
+                <tbody class="users-list">
+                </tbody>
+            </table>
+        `;
         const usersList = container.querySelector('.users-list')!;
         
         users.forEach((user: any) => {
@@ -466,43 +503,46 @@ async function loadAllUsers(statusFilter?: string) {
                 ? `${API_BASE_URL}/files?path=${encodeURIComponent(user.verificationImagePath)}&t=${timestamp}`
                 : null;
             
-            const userCard = document.createElement('div');
-            userCard.className = 'user-card';
-            userCard.innerHTML = `
-                <div class="user-card-header">
-                    <div>
-                        <div class="user-card-name">${user.firstName} ${user.lastName}</div>
-                        <div class="user-card-info">${user.email}</div>
-                    </div>
-                    ${getStatusBadge(user.status)}
-                </div>
-                <div class="user-card-info">
-                    <div><strong>Registered:</strong> ${new Date(user.createdAt).toLocaleDateString()}</div>
-                    <div><strong>Booked Spaces:</strong> ${user.bookedSpacesCount}</div>
-                </div>
-                ${imageUrl ? `
-                <div class="user-card-image">
-                    <img src="${imageUrl}" 
-                         alt="Verification Image" 
-                         class="verification-thumbnail"
-                         data-full-image="${imageUrl}"
-                         style="max-width: 150px; max-height: 150px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s;" 
-                         onclick="event.stopPropagation(); openImageViewer('${imageUrl}');" />
-                    <p style="text-align: center; margin-top: 0.5rem; color: #666; font-size: 0.75rem;">Click to view full size</p>
-                </div>
-                ` : '<div class="user-card-image"><p style="color: #999; font-size: 0.9rem;">No verification image</p></div>'}
+            const userRow = document.createElement('tr');
+            userRow.className = 'user-row';
+            userRow.innerHTML = `
+                <td class="user-name">${user.firstName} ${user.lastName}</td>
+                <td class="user-email">${user.email}</td>
+                <td class="user-status-cell">${getStatusBadge(user.status)}</td>
+                <td class="user-date">${new Date(user.createdAt).toLocaleDateString()}</td>
+                <td class="user-spaces">${user.bookedSpacesCount}</td>
+                <td class="user-image-cell">
+                    ${imageUrl ? `
+                        <img src="${imageUrl}" 
+                             alt="Verification Image" 
+                             class="verification-thumbnail"
+                             data-full-image="${imageUrl}"
+                             style="max-width: 60px; max-height: 60px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s;" />
+                    ` : '<span style="color: #999; font-size: 0.85rem;">No image</span>'}
+                </td>
             `;
             
-            // Make card clickable to navigate to review page
-            userCard.addEventListener('click', (e) => {
-                // Don't navigate if clicking on the image
+            // Attach click handler to image thumbnail if it exists
+            if (imageUrl) {
+                const thumbnail = userRow.querySelector('.verification-thumbnail') as HTMLImageElement;
+                if (thumbnail) {
+                    thumbnail.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        openImageViewer(imageUrl);
+                    });
+                }
+            }
+            
+            // Make row clickable to open review modal
+            userRow.addEventListener('click', (e) => {
+                // Don't open modal if clicking on the image
                 if ((e.target as HTMLElement).closest('.verification-thumbnail')) {
                     return;
                 }
-                window.location.href = `${window.location.pathname}?userId=${user.id}`;
+                openReviewModal(user.id);
             });
             
-            usersList.appendChild(userCard);
+            usersList.appendChild(userRow);
         });
     } catch (error: any) {
         console.error('Error loading users:', error);
