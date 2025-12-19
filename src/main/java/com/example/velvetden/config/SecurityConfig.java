@@ -73,6 +73,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/events/*/cancel").authenticated() // Cancel event requires authentication
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/admin/users").authenticated() // Create user requires authentication
                 .requestMatchers("/api/events/**", "/api/registration/**", "/api/auth/**").permitAll()
                 .requestMatchers("/api/admin/**").permitAll() // Admin endpoints are public (admin page handles auth)
                 .requestMatchers("/api/files/**").permitAll()

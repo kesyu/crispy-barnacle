@@ -1046,6 +1046,16 @@ function openAddUserModal() {
         modal.classList.add('active');
         // Reset form
         (document.getElementById('add-user-form') as HTMLFormElement).reset();
+        // Set default status to APPROVED
+        const statusSelect = document.getElementById('new-user-status') as HTMLSelectElement;
+        if (statusSelect) {
+            statusSelect.value = 'APPROVED';
+        }
+        // Scroll modal content to top
+        const modalContent = modal.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.scrollTop = 0;
+        }
     }
 }
 
