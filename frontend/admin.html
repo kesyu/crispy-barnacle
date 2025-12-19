@@ -106,8 +106,9 @@
         }
         .filter-buttons {
             display: flex;
-            gap: 6px;
-            flex-wrap: nowrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
             margin: 20px 0;
             width: 100%;
             box-sizing: border-box;
@@ -511,11 +512,14 @@
                     </button>
                 </div>
                 <div class="filter-buttons">
-                    <button class="btn filter-btn active" data-status="">All</button>
-                    <button class="btn filter-btn" data-status="IN_REVIEW">In Review</button>
-                    <button class="btn filter-btn" data-status="APPROVED">Approved</button>
-                    <button class="btn filter-btn" data-status="REJECTED">Rejected</button>
-                    <button class="btn filter-btn" data-status="PICTURE_REQUESTED">Picture</button>
+                    <div style="display: flex; gap: 6px; flex-wrap: nowrap;">
+                        <button class="btn filter-btn active" data-status="">All</button>
+                        <button class="btn filter-btn" data-status="IN_REVIEW">In Review</button>
+                        <button class="btn filter-btn" data-status="APPROVED">Approved</button>
+                        <button class="btn filter-btn" data-status="REJECTED">Rejected</button>
+                        <button class="btn filter-btn" data-status="PICTURE_REQUESTED">Picture</button>
+                    </div>
+                    <input type="text" id="user-search-input" placeholder="Search users..." style="padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 0.9rem; box-sizing: border-box; min-width: 200px; max-width: 300px;">
                 </div>
                 <div id="users-list-container">
                     <p>Loading users...</p>

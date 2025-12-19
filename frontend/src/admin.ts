@@ -23,6 +23,7 @@ let originalUserValues: {
     size: string | null;
     adminComments: string | null;
 } | null = null;
+let allUsersData: any[] = []; // Store all users for filtering
 
 // Check if user is already logged in and token is valid
 const token = localStorage.getItem('token');
@@ -534,30 +535,64 @@ async function loadAllUsers(statusFilter?: string) {
         
         const users = response.data;
         
-        if (users.length === 0) {
-            container.innerHTML = '<p>No users found.</p>';
-            return;
+        // Store users data for filtering
+        allUsersData = users;
+        
+        // Apply search filter if there's search text
+        const searchInput = document.getElementById('user-search-input') as HTMLInputElement;
+        const searchText = searchInput?.value || '';
+        filterUsersBySearch(searchText);
+    } catch (error: any) {
+        console.error('Error loading users:', error);
+        console.error('Error response:', error.response);
+        console.error('Error message:', error.message);
+        
+        if (error.response?.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('userEmail');
+            loginSection!.style.display = 'block';
+            usersListSection!.style.display = 'none';
+            adminMenubar!.style.display = 'none';
+            showMessage('Please log in to view users', 'error');
+        } else {
+            const errorMessage = error.response?.data?.error || 
+                                error.response?.data?.message || 
+                                error.message || 
+                                'Unknown error';
+            container.innerHTML = `<p style="color: #f44336;">Failed to load users: ${errorMessage}</p>`;
+            showMessage(`Failed to load users: ${errorMessage}`, 'error');
         }
-        
-        container.innerHTML = `
-            <table class="users-table">
-                <thead>
-                    <tr>
-                        <th>Name & Email</th>
-                        <th>Status</th>
-                        <th>Personal Info</th>
-                        <th>Registered</th>
-                        <th>Booked</th>
-                        <th>Image</th>
-                    </tr>
-                </thead>
-                <tbody class="users-list">
-                </tbody>
-            </table>
-        `;
-        const usersList = container.querySelector('.users-list')!;
-        
-        users.forEach((user: any) => {
+    }
+}
+
+function renderUsers(users: any[]) {
+    const container = document.getElementById('users-list-container');
+    if (!container) return;
+    
+    if (users.length === 0) {
+        container.innerHTML = '<p>No users found.</p>';
+        return;
+    }
+    
+    container.innerHTML = `
+        <table class="users-table">
+            <thead>
+                <tr>
+                    <th>Name & Email</th>
+                    <th>Status</th>
+                    <th>Personal Info</th>
+                    <th>Registered</th>
+                    <th>Booked</th>
+                    <th>Image</th>
+                </tr>
+            </thead>
+            <tbody class="users-list">
+            </tbody>
+        </table>
+    `;
+    const usersList = container.querySelector('.users-list')!;
+    
+    users.forEach((user: any) => {
             const timestamp = new Date().getTime();
             const imageUrl = user.verificationImagePath 
                 ? `${API_BASE_URL}/files?path=${encodeURIComponent(user.verificationImagePath)}&t=${timestamp}`
@@ -726,27 +761,80 @@ async function loadAllUsers(statusFilter?: string) {
             
             usersList.appendChild(userRow);
         });
-    } catch (error: any) {
-        console.error('Error loading users:', error);
-        console.error('Error response:', error.response);
-        console.error('Error message:', error.message);
-        
-        if (error.response?.status === 401) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('userEmail');
-            loginSection!.style.display = 'block';
-            usersListSection!.style.display = 'none';
-            adminMenubar!.style.display = 'none';
-            showMessage('Please log in to view users', 'error');
-        } else {
-            const errorMessage = error.response?.data?.error || 
-                                error.response?.data?.message || 
-                                error.message || 
-                                'Unknown error';
-            container.innerHTML = `<p style="color: #f44336;">Failed to load users: ${errorMessage}</p>`;
-            showMessage(`Failed to load users: ${errorMessage}`, 'error');
-        }
+}
+
+function filterUsersBySearch(searchText: string) {
+    if (!searchText || searchText.trim() === '') {
+        // No search text, show all users (respecting status filter)
+        const activeFilter = document.querySelector('.filter-btn.active') as HTMLButtonElement;
+        const currentStatus = activeFilter?.getAttribute('data-status') || '';
+        const filtered = currentStatus 
+            ? allUsersData.filter((user: any) => user.status === currentStatus.toUpperCase())
+            : allUsersData;
+        renderUsers(filtered);
+        return;
     }
+    
+    const searchLower = searchText.toLowerCase().trim();
+    
+    // Get current status filter
+    const activeFilter = document.querySelector('.filter-btn.active') as HTMLButtonElement;
+    const currentStatus = activeFilter?.getAttribute('data-status') || '';
+    
+    // Filter users
+    let filtered = allUsersData;
+    
+    // Apply status filter first if active
+    if (currentStatus) {
+        filtered = filtered.filter((user: any) => user.status === currentStatus.toUpperCase());
+    }
+    
+    // Apply search filter
+    filtered = filtered.filter((user: any) => {
+        // Search in name
+        const fullName = `${user.firstName || ''} ${user.lastName || ''}`.toLowerCase();
+        if (fullName.includes(searchLower)) return true;
+        
+        // Search in email
+        if (user.email && user.email.toLowerCase().includes(searchLower)) return true;
+        
+        // Search in status
+        if (user.status && user.status.toLowerCase().includes(searchLower)) return true;
+        
+        // Search in age
+        if (user.age && String(user.age).includes(searchLower)) return true;
+        
+        // Search in location
+        if (user.location && user.location.toLowerCase().includes(searchLower)) return true;
+        
+        // Search in height
+        if (user.height && user.height.toLowerCase().includes(searchLower)) return true;
+        
+        // Search in size
+        if (user.size && user.size.toLowerCase().includes(searchLower)) return true;
+        
+        // Search in registered date
+        if (user.createdAt) {
+            const dateStr = new Date(user.createdAt).toLocaleDateString().toLowerCase();
+            if (dateStr.includes(searchLower)) return true;
+        }
+        
+        // Search in booked spaces count
+        if (user.bookedSpacesCount !== undefined && String(user.bookedSpacesCount).includes(searchLower)) return true;
+        
+        return false;
+    });
+    
+    renderUsers(filtered);
+}
+
+// Search input handler
+const searchInput = document.getElementById('user-search-input');
+if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+        const searchText = (e.target as HTMLInputElement).value;
+        filterUsersBySearch(searchText);
+    });
 }
 
 // Filter buttons
@@ -759,8 +847,10 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
         target.classList.add('active');
         
-        // Load filtered users
-        loadAllUsers(status || undefined);
+        // Apply both status filter and search filter
+        const searchInput = document.getElementById('user-search-input') as HTMLInputElement;
+        const searchText = searchInput?.value || '';
+        filterUsersBySearch(searchText);
     });
 });
 
