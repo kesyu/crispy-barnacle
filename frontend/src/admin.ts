@@ -454,7 +454,6 @@ function showUsersListPage() {
     usersListSection!.style.display = 'block';
     document.getElementById('menubar-users')?.classList.add('active');
     document.getElementById('menubar-events')?.classList.remove('active');
-    document.getElementById('menubar-review')?.classList.remove('active');
     document.getElementById('admin-dashboard-header')!.style.display = 'block';
 }
 
@@ -463,7 +462,6 @@ function showEventsPage() {
     eventsSection!.style.display = 'block';
     document.getElementById('menubar-events')?.classList.add('active');
     document.getElementById('menubar-users')?.classList.remove('active');
-    document.getElementById('menubar-review')?.classList.remove('active');
     document.getElementById('admin-dashboard-header')!.style.display = 'block';
     loadAllEvents();
 }
@@ -492,15 +490,6 @@ document.getElementById('menubar-events')?.addEventListener('click', () => {
         window.history.pushState({}, '', window.location.pathname);
     }
     showEventsPage();
-});
-
-document.getElementById('menubar-review')?.addEventListener('click', () => {
-    // If no userId in URL, show message
-    if (!userId) {
-        showMessage('Please select a user from the users list to review', 'error');
-        return;
-    }
-    openReviewModal(userId);
 });
 
 // Close review modal handlers

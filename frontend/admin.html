@@ -19,12 +19,28 @@
         }
         .user-details {
             margin: 20px 0;
-            padding: 20px;
+            padding: 24px;
             background: #f5f5f5;
             border-radius: 4px;
         }
         .user-details h3 {
             margin-top: 0;
+            margin-bottom: 20px;
+        }
+        .user-details p {
+            margin: 12px 0;
+            line-height: 1.6;
+        }
+        .user-details h4 {
+            margin-bottom: 18px;
+            margin-top: 0;
+        }
+        .user-details .form-group {
+            margin-bottom: 20px;
+        }
+        .user-details > div[style*="margin-top"] {
+            margin-top: 28px !important;
+            padding-top: 24px !important;
         }
         .action-buttons {
             display: flex;
@@ -484,7 +500,6 @@
             <nav class="admin-menubar" id="admin-menubar" style="display: none;">
                 <button class="menubar-item active" id="menubar-users" data-page="users">All Users</button>
                 <button class="menubar-item" id="menubar-events" data-page="events">Events</button>
-                <button class="menubar-item" id="menubar-review" data-page="review">Review User</button>
             </nav>
             <div id="message"></div>
             <div id="login-section" style="display: none;">
@@ -577,8 +592,8 @@
                         <p><strong>Email:</strong> <span id="user-email"></span></p>
                         <p><strong>Registration Date:</strong> <span id="user-date"></span></p>
                         <p><strong>Status:</strong> <span id="user-status"></span></p>
-                        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-                            <h4 style="margin-bottom: 15px;">Additional Information</h4>
+                        <div style="margin-top: 28px; padding-top: 24px; border-top: 1px solid #e0e0e0;">
+                            <h4 style="margin-bottom: 18px;">Additional Information</h4>
                             <div class="form-group">
                                 <label for="user-age">Age</label>
                                 <input type="number" id="user-age" min="0" placeholder="Enter age">
@@ -596,15 +611,15 @@
                                 <input type="text" id="user-size" placeholder="Enter size">
                             </div>
                         </div>
-                        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-                            <h4 style="margin-bottom: 15px;">Admin Comments</h4>
+                        <div style="margin-top: 28px; padding-top: 24px; border-top: 1px solid #e0e0e0;">
+                            <h4 style="margin-bottom: 18px;">Admin Comments</h4>
                             <div class="form-group">
                                 <label for="user-admin-comments">Comments (Admin Only)</label>
                                 <textarea id="user-admin-comments" rows="4" placeholder="Enter admin comments"></textarea>
                             </div>
                         </div>
-                        <div id="verification-image-container"></div>
-                        <div style="margin-top: 20px;">
+                        <div id="verification-image-container" style="margin-top: 24px;"></div>
+                        <div style="margin-top: 28px;">
                             <button id="save-user-details-btn" class="btn btn-primary" style="width: auto; padding: 8px 20px;">Save Changes</button>
                         </div>
                     </div>
