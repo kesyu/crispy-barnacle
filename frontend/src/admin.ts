@@ -72,7 +72,20 @@ loginForm?.addEventListener('submit', async (e) => {
             await loadAllUsers();
         }
     } catch (error: any) {
-        const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Invalid credentials';
+        let errorMsg: string;
+        
+        // Check if it's a network error (backend not running)
+        if (!error.response) {
+            // No response means server is unreachable
+            errorMsg = 'Cannot connect to server. Please check if the backend is running.';
+        } else if (error.response?.status >= 500) {
+            // Server error
+            errorMsg = 'Server error. Please try again later.';
+        } else {
+            // Client error (401, 400, etc.) - likely invalid credentials
+            errorMsg = error.response?.data?.error || error.response?.data?.message || 'Invalid credentials';
+        }
+        
         showMessage('Login failed: ' + errorMsg, 'error');
         console.error('Login error:', error);
     }
@@ -490,16 +503,12 @@ async function loadAllUsers(statusFilter?: string) {
             <table class="users-table">
                 <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Age</th>
-                        <th>Location</th>
-                        <th>Height</th>
-                        <th>Size</th>
+                        <th>Name & Email</th>
                         <th>Status</th>
+                        <th>Personal Info</th>
                         <th>Registered</th>
-                        <th>Booked Spaces</th>
-                        <th>Verification Image</th>
+                        <th>Booked</th>
+                        <th>Image</th>
                     </tr>
                 </thead>
                 <tbody class="users-list">
@@ -514,16 +523,46 @@ async function loadAllUsers(statusFilter?: string) {
                 ? `${API_BASE_URL}/files?path=${encodeURIComponent(user.verificationImagePath)}&t=${timestamp}`
                 : null;
             
+            // Build name and email as a table structure
+            const nameEmail = `
+                <table class="name-email-table">
+                    <tr>
+                        <td class="name-value">${user.firstName} ${user.lastName}</td>
+                    </tr>
+                    <tr>
+                        <td class="email-value">${user.email}</td>
+                    </tr>
+                </table>
+            `;
+            
+            // Build personal info as a table structure
+            const personalInfo = `
+                <table class="personal-info-table">
+                    <tr>
+                        <td class="info-label">Age:</td>
+                        <td class="info-value">${user.age || '-'}</td>
+                    </tr>
+                    <tr>
+                        <td class="info-label">Location:</td>
+                        <td class="info-value">${user.location || '-'}</td>
+                    </tr>
+                    <tr>
+                        <td class="info-label">Height:</td>
+                        <td class="info-value">${user.height || '-'}</td>
+                    </tr>
+                    <tr>
+                        <td class="info-label">Size:</td>
+                        <td class="info-value">${user.size || '-'}</td>
+                    </tr>
+                </table>
+            `;
+            
             const userRow = document.createElement('tr');
             userRow.className = 'user-row';
             userRow.innerHTML = `
-                <td class="user-name">${user.firstName} ${user.lastName}</td>
-                <td class="user-email">${user.email}</td>
-                <td class="user-age">${user.age || '-'}</td>
-                <td class="user-location">${user.location || '-'}</td>
-                <td class="user-height">${user.height || '-'}</td>
-                <td class="user-size">${user.size || '-'}</td>
+                <td class="user-name-email">${nameEmail}</td>
                 <td class="user-status-cell">${getStatusBadge(user.status)}</td>
+                <td class="user-personal-info">${personalInfo}</td>
                 <td class="user-date">${new Date(user.createdAt).toLocaleDateString()}</td>
                 <td class="user-spaces">${user.bookedSpacesCount}</td>
                 <td class="user-image-cell">

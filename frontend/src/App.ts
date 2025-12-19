@@ -126,6 +126,9 @@ export class App {
         if (!document.getElementById('not-approved-modal')) {
             document.body.insertAdjacentHTML('beforeend', this.renderNotApprovedModal());
         }
+        if (!document.getElementById('rejected-modal')) {
+            document.body.insertAdjacentHTML('beforeend', this.renderRejectedModal());
+        }
         if (!document.getElementById('one-space-limit-modal')) {
             document.body.insertAdjacentHTML('beforeend', this.renderOneSpaceLimitModal());
         }
@@ -451,7 +454,7 @@ export class App {
                             Your account is currently <strong>in review</strong> and has not been approved yet.
                         </p>
                         <p style="font-size: 0.95rem; margin-bottom: 1.5rem; color: #666;">
-                            Only approved users can book spaces. Please wait for your account to be reviewed and approved by an administrator.
+                            Only approved users can book spaces.
                         </p>
                         <div style="background: #fff3cd; border-left: 4px solid #ff9800; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: left;">
                             <p style="margin: 0; color: #856404; font-size: 0.9rem;">
@@ -460,6 +463,35 @@ export class App {
                             </p>
                         </div>
                         <button class="btn btn-primary" id="close-not-approved-btn" style="width: auto; min-width: 120px;">OK</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    private renderRejectedModal(): string {
+        return `
+            <div id="rejected-modal" class="modal">
+                <div class="modal-content" style="max-width: 450px; text-align: center;">
+                    <div class="modal-header">
+                        <h2 style="color: #f44336;">Account Rejected</h2>
+                        <button class="close-btn" id="close-rejected-modal">&times;</button>
+                    </div>
+                    <div style="padding: 1rem 0;">
+                        <div style="font-size: 4rem; margin-bottom: 1rem; color: #f44336;">✗</div>
+                        <p style="font-size: 1.1rem; margin-bottom: 1rem; color: #333;">
+                            Your account has been <strong>rejected</strong>.
+                        </p>
+                        <p style="font-size: 0.95rem; margin-bottom: 1.5rem; color: #666;">
+                            Rejected accounts cannot book spaces.
+                        </p>
+                        <div style="background: #f8d7da; border-left: 4px solid #f44336; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: left;">
+                            <p style="margin: 0; color: #721c24; font-size: 0.9rem;">
+                                <strong>What's next?</strong><br>
+                                Your account has been rejected. If you believe this is an error, please contact an administrator to review your account.
+                            </p>
+                        </div>
+                        <button class="btn btn-primary" id="close-rejected-btn" style="width: auto; min-width: 120px;">OK</button>
                     </div>
                 </div>
             </div>
@@ -744,9 +776,10 @@ export class App {
                 const isRejected = target.dataset.rejected === 'true';
                 const isDisabled = target.dataset.disabled === 'true';
                 
-                // If user is rejected, prevent booking (spaces are already greyed out)
+                // If user is rejected, show rejected modal
                 if (isRejected && this.isAuthenticated) {
-                    // Don't allow rejected users to book spaces
+                    const rejectedModal = document.getElementById('rejected-modal');
+                    rejectedModal?.classList.add('active');
                     return;
                 }
                 
@@ -875,6 +908,38 @@ export class App {
                 notApprovedModal.classList.remove('active');
             }
         });
+
+        // Rejected modal
+        const rejectedModal = document.getElementById('rejected-modal');
+        const closeRejectedModal = document.getElementById('close-rejected-modal');
+        const closeRejectedBtn = document.getElementById('close-rejected-btn');
+
+        if (closeRejectedModal) {
+            // Remove any existing listeners by cloning
+            const newCloseBtn = closeRejectedModal.cloneNode(true);
+            closeRejectedModal.parentNode?.replaceChild(newCloseBtn, closeRejectedModal);
+            (newCloseBtn as HTMLElement).addEventListener('click', () => {
+                rejectedModal?.classList.remove('active');
+            });
+        }
+
+        if (closeRejectedBtn) {
+            // Remove any existing listeners by cloning
+            const newOkBtn = closeRejectedBtn.cloneNode(true);
+            closeRejectedBtn.parentNode?.replaceChild(newOkBtn, closeRejectedBtn);
+            (newOkBtn as HTMLElement).addEventListener('click', () => {
+                rejectedModal?.classList.remove('active');
+            });
+        }
+
+        // Close modal when clicking outside
+        if (rejectedModal) {
+            rejectedModal.addEventListener('click', (e) => {
+                if (e.target === rejectedModal) {
+                    rejectedModal.classList.remove('active');
+                }
+            });
+        }
 
         // One space limit modal
         const oneSpaceLimitModal = document.getElementById('one-space-limit-modal');
@@ -1053,10 +1118,21 @@ export class App {
                 
                 // Check if user is approved before proceeding with booking
                 if (!this.userDetails?.approved) {
-                    // User is not approved - show warning modal instead
+                    // Check if user is rejected or just in review
+                    const userStatus = this.userDetails?.status;
+                    const statusUpper = userStatus ? String(userStatus).trim().toUpperCase() : '';
+                    const isRejected = statusUpper === 'REJECTED' || statusUpper === 'DECLINED';
+                    
                     setTimeout(() => {
-                        const notApprovedModal = document.getElementById('not-approved-modal');
-                        notApprovedModal?.classList.add('active');
+                        if (isRejected) {
+                            // User is rejected - show rejected modal
+                            const rejectedModal = document.getElementById('rejected-modal');
+                            rejectedModal?.classList.add('active');
+                        } else {
+                            // User is in review - show not approved modal
+                            const notApprovedModal = document.getElementById('not-approved-modal');
+                            notApprovedModal?.classList.add('active');
+                        }
                     }, 100);
                 } else {
                     // User is approved - proceed with booking
@@ -1072,9 +1148,22 @@ export class App {
                 this.attachEventListeners();
             }
         } catch (error: any) {
-            const errorMsg = error.response?.data?.error || 'Login failed. Please check your credentials.';
+            let errorMsg: string;
+            
+            // Check if it's a network error (backend not running)
+            if (!error.response) {
+                // No response means server is unreachable
+                errorMsg = 'Cannot connect to server.';
+            } else if (error.response?.status >= 500) {
+                // Server error
+                errorMsg = 'Server error. Please try again later.';
+            } else {
+                // Client error (401, 400, etc.) - likely invalid credentials
+                errorMsg = error.response?.data?.error || 'Login failed. Please check your credentials.';
+            }
+            
             this.showMessage(messageDiv, errorMsg, 'error');
-            form.reset(); // Clear the form on invalid credentials
+            form.reset(); // Clear the form on error
         }
     }
 
@@ -1225,9 +1314,20 @@ export class App {
             
             // Check if it's a non-approved user error
             if (errorMsg.toLowerCase().includes('approved') || errorMsg.toLowerCase().includes('only approved')) {
-                // Show custom modal for non-approved users
-                const notApprovedModal = document.getElementById('not-approved-modal');
-                notApprovedModal?.classList.add('active');
+                // Check if user is rejected or just in review
+                const userStatus = this.userDetails?.status;
+                const statusUpper = userStatus ? String(userStatus).trim().toUpperCase() : '';
+                const isRejected = statusUpper === 'REJECTED' || statusUpper === 'DECLINED';
+                
+                if (isRejected) {
+                    // User is rejected - show rejected modal
+                    const rejectedModal = document.getElementById('rejected-modal');
+                    rejectedModal?.classList.add('active');
+                } else {
+                    // User is in review - show not approved modal
+                    const notApprovedModal = document.getElementById('not-approved-modal');
+                    notApprovedModal?.classList.add('active');
+                }
             } else if (errorMsg.toLowerCase().includes('one space') || errorMsg.toLowerCase().includes('only book one')) {
                 // Show the one space limit modal with custom message
                 const oneSpaceLimitModal = document.getElementById('one-space-limit-modal');
