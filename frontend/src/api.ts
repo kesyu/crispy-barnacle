@@ -257,6 +257,10 @@ export const adminApi = {
         const response = await api.put<UserDetailsDTO>(`/admin/users/${userId}`, updates);
         return response.data;
     },
+    createUser: async (formData: FormData): Promise<UserDetailsDTO> => {
+        const response = await api.post<UserDetailsDTO>('/admin/users', formData);
+        return response.data;
+    },
 };
 
 

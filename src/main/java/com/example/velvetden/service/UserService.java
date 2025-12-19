@@ -59,5 +59,41 @@ public class UserService {
         
         return userRepository.save(user);
     }
+    
+    @Transactional
+    public User createUserByAdmin(
+            String email,
+            String password,
+            String firstName,
+            String lastName,
+            User.UserStatus initialStatus,
+            String imagePath,
+            Integer age,
+            String location,
+            String height,
+            String size,
+            String adminComments) {
+        
+        // Check if email already exists (only if email is provided)
+        if (email != null && !email.trim().isEmpty() && userRepository.existsByEmail(email)) {
+            throw new RuntimeException("Email already registered");
+        }
+        
+        User user = new User();
+        user.setEmail(email != null ? email : "");
+        user.setPassword(passwordEncoder.encode(password != null ? password : "temp123"));
+        user.setFirstName(firstName != null ? firstName : "");
+        user.setLastName(lastName != null ? lastName : "");
+        user.setStatus(initialStatus != null ? initialStatus : User.UserStatus.IN_REVIEW);
+        user.setVerificationImagePath(imagePath);
+        user.setAge(age);
+        user.setLocation(location);
+        user.setHeight(height);
+        user.setSize(size);
+        user.setAdminComments(adminComments);
+        user.setCreatedAt(LocalDateTime.now());
+        
+        return userRepository.save(user);
+    }
 }
 

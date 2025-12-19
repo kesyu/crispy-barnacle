@@ -269,6 +269,56 @@
         .user-personal-info {
             padding: 8px !important;
         }
+        .thought-bubble {
+            display: inline-block;
+            margin-left: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            vertical-align: middle;
+            position: relative;
+        }
+        .admin-comments-tooltip {
+            position: fixed;
+            background: #333;
+            color: white;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            max-width: 300px;
+            word-wrap: break-word;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            line-height: 1.4;
+            user-select: text;
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            cursor: text;
+            white-space: pre-wrap;
+        }
+        .admin-comments-tooltip .tooltip-link {
+            color: #4fc3f7;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .admin-comments-tooltip .tooltip-link:hover {
+            color: #81d4fa;
+        }
+        .admin-comments-tooltip::before {
+            content: '';
+            position: absolute;
+            left: -6px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 6px solid transparent;
+            border-right-color: #333;
+        }
+        .admin-comments-tooltip.tooltip-left::before {
+            left: auto;
+            right: -6px;
+            border-right-color: transparent;
+            border-left-color: #333;
+        }
         .personal-info-table {
             width: 100%;
             border-collapse: collapse;
@@ -454,7 +504,12 @@
                 </form>
             </div>
             <div id="users-list-section" style="display: none;">
-                <h2>All Registered Users</h2>
+                <div style="margin-bottom: 20px;">
+                    <h2 style="margin: 0 0 15px 0;">All Registered Users</h2>
+                    <button id="add-user-btn" class="btn" style="background: #4caf50; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; white-space: nowrap;">
+                        + Add New User
+                    </button>
+                </div>
                 <div class="filter-buttons">
                     <button class="btn filter-btn active" data-status="">All</button>
                     <button class="btn filter-btn" data-status="IN_REVIEW">In Review</button>
@@ -554,6 +609,69 @@
                         <button id="reject-btn" class="btn btn-reject">Reject User</button>
                         <button id="request-picture-btn" class="btn btn-request-picture">Request New Picture</button>
                     </div>
+                </div>
+            </div>
+            <div id="add-user-modal" class="modal">
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h2>Add New User</h2>
+                        <button class="close-btn" id="close-add-user-modal">&times;</button>
+                    </div>
+                    <form id="add-user-form">
+                        <div class="form-group">
+                            <label for="new-user-email">Email (leave empty for auto-generated)</label>
+                            <input type="email" id="new-user-email" placeholder="user@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-user-password">Password (leave empty for default: temp123)</label>
+                            <input type="password" id="new-user-password" placeholder="Enter password">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-user-firstname">First Name</label>
+                            <input type="text" id="new-user-firstname" placeholder="Enter first name">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-user-lastname">Last Name</label>
+                            <input type="text" id="new-user-lastname" placeholder="Enter last name">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-user-status">Initial Status</label>
+                            <select id="new-user-status">
+                                <option value="IN_REVIEW">In Review</option>
+                                <option value="APPROVED">Approved</option>
+                                <option value="REJECTED">Rejected</option>
+                                <option value="PICTURE_REQUESTED">Picture Requested</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-user-verification-image">Verification Image (Optional)</label>
+                            <input type="file" id="new-user-verification-image" accept="image/*">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-user-age">Age</label>
+                            <input type="number" id="new-user-age" min="0" placeholder="Enter age">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-user-location">Location</label>
+                            <input type="text" id="new-user-location" placeholder="Enter location">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-user-height">Height</label>
+                            <input type="text" id="new-user-height" placeholder="Enter height">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-user-size">Size</label>
+                            <input type="text" id="new-user-size" placeholder="Enter size">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-user-admin-comments">Admin Comments</label>
+                            <textarea id="new-user-admin-comments" rows="3" placeholder="Enter admin comments"></textarea>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 20px;">
+                            <button type="submit" class="btn btn-primary">Create User</button>
+                            <button type="button" id="cancel-add-user-btn" class="btn" style="background: #9e9e9e; color: white; border: none;">Cancel</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>

@@ -4,10 +4,14 @@ import com.example.velvetden.dto.UserDetailsDTO;
 import com.example.velvetden.entity.User;
 import com.example.velvetden.repository.SpaceRepository;
 import com.example.velvetden.repository.UserRepository;
+import com.example.velvetden.service.FileStorageService;
+import com.example.velvetden.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
 import java.util.List;
@@ -22,6 +26,8 @@ public class AdminController {
     
     private final UserRepository userRepository;
     private final SpaceRepository spaceRepository;
+    private final UserService userService;
+    private final FileStorageService fileStorageService;
     
     @PostMapping("/{userId}/approve")
     public ResponseEntity<Map<String, Object>> approveUser(@PathVariable("userId") Long userId) {
@@ -215,6 +221,147 @@ public class AdminController {
             error.put("error", "Failed to update user: " + e.getMessage());
             return ResponseEntity.badRequest().body(error);
         }
+    }
+    
+    @PostMapping
+    public ResponseEntity<?> createUser(
+            @RequestParam(value = "email", required = false) String email,
+            @RequestParam(value = "password", required = false) String password,
+            @RequestParam(value = "firstName", required = false) String firstName,
+            @RequestParam(value = "lastName", required = false) String lastName,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "verificationImage", required = false) MultipartFile verificationImage,
+            @RequestParam(value = "age", required = false) Integer age,
+            @RequestParam(value = "location", required = false) String location,
+            @RequestParam(value = "height", required = false) String height,
+            @RequestParam(value = "size", required = false) String size,
+            @RequestParam(value = "adminComments", required = false) String adminComments,
+            Authentication authentication) {
+        
+        try {
+            // Check if user is authenticated and is an admin
+            if (authentication == null || authentication.getPrincipal() == null) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("error", "Authentication required");
+                return ResponseEntity.status(403).body(error);
+            }
+            
+            User admin = (User) authentication.getPrincipal();
+            if (admin.getIsAdmin() == null || !admin.getIsAdmin()) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("error", "Admin access required");
+                return ResponseEntity.status(403).body(error);
+            }
+            
+            // Generate email if empty
+            if (email == null || email.trim().isEmpty()) {
+                email = generateRandomEmail();
+            }
+            
+            // Set default password if empty
+            if (password == null || password.trim().isEmpty()) {
+                password = "temp123";
+            }
+            
+            // Set default names if empty
+            if (firstName == null || firstName.trim().isEmpty()) {
+                firstName = "";
+            }
+            if (lastName == null || lastName.trim().isEmpty()) {
+                lastName = "";
+            }
+            
+            // Parse status
+            User.UserStatus initialStatus = User.UserStatus.IN_REVIEW;
+            if (status != null && !status.isEmpty()) {
+                try {
+                    initialStatus = User.UserStatus.valueOf(status.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    // Invalid status, use default
+                }
+            }
+            
+            // Store verification image if provided
+            String imagePath = null;
+            if (verificationImage != null && !verificationImage.isEmpty()) {
+                imagePath = fileStorageService.storeFile(verificationImage);
+            }
+            
+            // Create user
+            User user = userService.createUserByAdmin(
+                email, password, firstName, lastName, initialStatus,
+                imagePath, age, location, height, size, adminComments
+            );
+            
+            // Return user DTO
+            UserDetailsDTO dto = new UserDetailsDTO();
+            dto.setId(user.getId());
+            dto.setEmail(user.getEmail());
+            dto.setFirstName(user.getFirstName());
+            dto.setLastName(user.getLastName());
+            dto.setStatus(user.getStatus().name());
+            dto.setApproved(user.isApproved());
+            dto.setCreatedAt(user.getCreatedAt());
+            dto.setVerificationImagePath(user.getVerificationImagePath());
+            dto.setBookedSpacesCount(0);
+            dto.setAge(user.getAge());
+            dto.setLocation(user.getLocation());
+            dto.setHeight(user.getHeight());
+            dto.setSize(user.getSize());
+            dto.setAdminComments(user.getAdminComments());
+            
+            return ResponseEntity.ok(dto);
+        } catch (DataIntegrityViolationException e) {
+            Map<String, Object> error = new HashMap<>();
+            String errorMessage = e.getMessage();
+            
+            if (errorMessage != null && (errorMessage.contains("duplicate key") || 
+                                         errorMessage.contains("Unique index") || 
+                                         errorMessage.contains("23505") ||
+                                         errorMessage.contains("users_email_key"))) {
+                errorMessage = "This email is already registered.";
+            } else {
+                errorMessage = "Failed to create user due to a data constraint violation.";
+            }
+            
+            error.put("error", errorMessage);
+            return ResponseEntity.badRequest().body(error);
+        } catch (RuntimeException e) {
+            Map<String, Object> error = new HashMap<>();
+            String errorMessage = e.getMessage();
+            
+            if (errorMessage != null && errorMessage.contains("already registered")) {
+                errorMessage = "This email is already registered.";
+            } else if (errorMessage == null || errorMessage.isEmpty()) {
+                errorMessage = "Failed to create user. Please check your input and try again.";
+            }
+            
+            error.put("error", errorMessage);
+            return ResponseEntity.badRequest().body(error);
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "Failed to create user: " + e.getMessage());
+            return ResponseEntity.status(500).body(error);
+        }
+    }
+    
+    private String generateRandomEmail() {
+        // Generate a unique random email like: user1234567890123@temp.local
+        // Keep generating until we find one that doesn't exist
+        String email;
+        int attempts = 0;
+        do {
+            long timestamp = System.currentTimeMillis();
+            int random = (int) (Math.random() * 100000);
+            email = "user" + timestamp + random + "@temp.local";
+            attempts++;
+            // Safety check to prevent infinite loop
+            if (attempts > 100) {
+                throw new RuntimeException("Unable to generate unique email after multiple attempts");
+            }
+        } while (userRepository.existsByEmail(email));
+        
+        return email;
     }
 }
 

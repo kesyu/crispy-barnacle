@@ -1,4 +1,4 @@
-import { authApi, spaceTemplateApi, SpaceTemplateDTO, isTokenExpired, eventApi, adminApi } from './api';
+import { authApi, spaceTemplateApi, SpaceTemplateDTO, isTokenExpired, eventApi, adminApi, UserDetailsDTO } from './api';
 import axios from 'axios';
 
 const API_BASE_URL = '/api';
@@ -16,6 +16,13 @@ const eventsSection = document.getElementById('events-section');
 const adminMenubar = document.getElementById('admin-menubar');
 const loginForm = document.getElementById('admin-login-form') as HTMLFormElement;
 let currentReviewUserId: string | null = null;
+let originalUserValues: {
+    age: string | null;
+    location: string | null;
+    height: string | null;
+    size: string | null;
+    adminComments: string | null;
+} | null = null;
 
 // Check if user is already logged in and token is valid
 const token = localStorage.getItem('token');
@@ -95,6 +102,13 @@ loginForm?.addEventListener('submit', async (e) => {
 async function openReviewModal(userId: string) {
     currentReviewUserId = userId;
     if (reviewModal) {
+        // Disable save button initially
+        const saveBtn = document.getElementById('save-user-details-btn') as HTMLButtonElement;
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.style.opacity = '0.5';
+            saveBtn.style.cursor = 'not-allowed';
+        }
         reviewModal.classList.add('active');
         await loadUserDetails(userId);
     }
@@ -134,11 +148,37 @@ async function loadUserDetails(userIdParam?: string) {
         statusElement.innerHTML = statusBadge;
         
         // Populate editable fields
-        (document.getElementById('user-age') as HTMLInputElement).value = user.age || '';
-        (document.getElementById('user-location') as HTMLInputElement).value = user.location || '';
-        (document.getElementById('user-height') as HTMLInputElement).value = user.height || '';
-        (document.getElementById('user-size') as HTMLInputElement).value = user.size || '';
-        (document.getElementById('user-admin-comments') as HTMLTextAreaElement).value = user.adminComments || '';
+        const ageInput = document.getElementById('user-age') as HTMLInputElement;
+        const locationInput = document.getElementById('user-location') as HTMLInputElement;
+        const heightInput = document.getElementById('user-height') as HTMLInputElement;
+        const sizeInput = document.getElementById('user-size') as HTMLInputElement;
+        const adminCommentsInput = document.getElementById('user-admin-comments') as HTMLTextAreaElement;
+        
+        ageInput.value = user.age || '';
+        locationInput.value = user.location || '';
+        heightInput.value = user.height || '';
+        sizeInput.value = user.size || '';
+        adminCommentsInput.value = user.adminComments || '';
+        
+        // Store original values for change detection
+        originalUserValues = {
+            age: user.age ? String(user.age) : null,
+            location: user.location || null,
+            height: user.height || null,
+            size: user.size || null,
+            adminComments: user.adminComments || null
+        };
+        
+        // Disable save button initially
+        const saveBtn = document.getElementById('save-user-details-btn') as HTMLButtonElement;
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.style.opacity = '0.5';
+            saveBtn.style.cursor = 'not-allowed';
+        }
+        
+        // Attach change listeners to enable/disable save button
+        attachUserDetailsChangeListeners();
 
         // Show verification image if available
         const imageContainer = document.getElementById('verification-image-container')!;
@@ -523,11 +563,21 @@ async function loadAllUsers(statusFilter?: string) {
                 ? `${API_BASE_URL}/files?path=${encodeURIComponent(user.verificationImagePath)}&t=${timestamp}`
                 : null;
             
-            // Build name and email as a table structure
+            const adminComments = user.adminComments || '';
+            const hasAdminComments = adminComments.trim().length > 0;
+            
+            // Build name and email as a table structure with thought bubble if comments exist
+            const thoughtBubble = hasAdminComments 
+                ? '<span class="thought-bubble" data-comments="' + adminComments.replace(/"/g, '&quot;') + '">💭</span>'
+                : '';
+            
             const nameEmail = `
                 <table class="name-email-table">
                     <tr>
-                        <td class="name-value">${user.firstName} ${user.lastName}</td>
+                        <td class="name-value">
+                            ${user.firstName} ${user.lastName}
+                            ${thoughtBubble}
+                        </td>
                     </tr>
                     <tr>
                         <td class="email-value">${user.email}</td>
@@ -575,6 +625,84 @@ async function loadAllUsers(statusFilter?: string) {
                     ` : '<span style="color: #999; font-size: 0.85rem;">No image</span>'}
                 </td>
             `;
+            
+            // Attach hover handlers for thought bubble if it exists
+            if (hasAdminComments) {
+                const thoughtBubbleElement = userRow.querySelector('.thought-bubble');
+                if (thoughtBubbleElement) {
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'admin-comments-tooltip';
+                    // Convert URLs to clickable links
+                    tooltip.innerHTML = convertUrlsToLinks(adminComments);
+                    tooltip.style.display = 'none';
+                    document.body.appendChild(tooltip);
+                    
+                    let tooltipTimeout: number | null = null;
+                    
+                    const showTooltip = (e: MouseEvent) => {
+                        const bubble = e.target as HTMLElement;
+                        const rect = bubble.getBoundingClientRect();
+                        
+                        // Clear any pending hide timeout
+                        if (tooltipTimeout !== null) {
+                            clearTimeout(tooltipTimeout);
+                            tooltipTimeout = null;
+                        }
+                        
+                        // Position tooltip to the right of the bubble initially
+                        tooltip.style.left = (rect.right + 10) + 'px';
+                        tooltip.style.top = rect.top + 'px';
+                        tooltip.style.display = 'block';
+                        
+                        // After displaying, check if we need to adjust position
+                        setTimeout(() => {
+                            const tooltipRect = tooltip.getBoundingClientRect();
+                            let left = rect.right + 10;
+                            let top = rect.top;
+                            
+                            // Adjust if tooltip would go off screen to the right
+                            if (left + tooltipRect.width > window.innerWidth) {
+                                // Position to the left instead
+                                left = rect.left - tooltipRect.width - 10;
+                                tooltip.classList.add('tooltip-left');
+                            } else {
+                                tooltip.classList.remove('tooltip-left');
+                            }
+                            
+                            // Adjust vertical position if needed
+                            if (top + tooltipRect.height > window.innerHeight) {
+                                top = window.innerHeight - tooltipRect.height - 10;
+                            }
+                            
+                            tooltip.style.left = left + 'px';
+                            tooltip.style.top = top + 'px';
+                        }, 0);
+                    };
+                    
+                    const hideTooltip = () => {
+                        // Delay hiding to allow mouse to move to tooltip
+                        tooltipTimeout = window.setTimeout(() => {
+                            tooltip.style.display = 'none';
+                        }, 100);
+                    };
+                    
+                    thoughtBubbleElement.addEventListener('mouseenter', showTooltip);
+                    thoughtBubbleElement.addEventListener('mouseleave', hideTooltip);
+                    
+                    // Keep tooltip visible when hovering over it
+                    tooltip.addEventListener('mouseenter', () => {
+                        if (tooltipTimeout !== null) {
+                            clearTimeout(tooltipTimeout);
+                            tooltipTimeout = null;
+                        }
+                    });
+                    
+                    // Hide tooltip when mouse leaves tooltip
+                    tooltip.addEventListener('mouseleave', () => {
+                        tooltip.style.display = 'none';
+                    });
+                }
+            }
             
             // Attach click handler to image thumbnail if it exists
             if (imageUrl) {
@@ -911,6 +1039,117 @@ document.getElementById('add-event-modal')?.addEventListener('click', (e) => {
     }
 });
 
+// Add User Modal Functions
+function openAddUserModal() {
+    const modal = document.getElementById('add-user-modal');
+    if (modal) {
+        modal.classList.add('active');
+        // Reset form
+        (document.getElementById('add-user-form') as HTMLFormElement).reset();
+    }
+}
+
+function closeAddUserModal() {
+    const modal = document.getElementById('add-user-modal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+document.getElementById('add-user-btn')?.addEventListener('click', openAddUserModal);
+
+document.getElementById('close-add-user-modal')?.addEventListener('click', closeAddUserModal);
+
+document.getElementById('cancel-add-user-btn')?.addEventListener('click', closeAddUserModal);
+
+// Close modal when clicking outside
+document.getElementById('add-user-modal')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('add-user-modal')) {
+        closeAddUserModal();
+    }
+});
+
+// Create user form handler
+document.getElementById('add-user-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const email = (document.getElementById('new-user-email') as HTMLInputElement).value.trim();
+    const password = (document.getElementById('new-user-password') as HTMLInputElement).value.trim();
+    const firstName = (document.getElementById('new-user-firstname') as HTMLInputElement).value.trim();
+    const lastName = (document.getElementById('new-user-lastname') as HTMLInputElement).value.trim();
+    const status = (document.getElementById('new-user-status') as HTMLSelectElement).value;
+    const verificationImage = (document.getElementById('new-user-verification-image') as HTMLInputElement).files?.[0];
+    const age = (document.getElementById('new-user-age') as HTMLInputElement).value.trim();
+    const location = (document.getElementById('new-user-location') as HTMLInputElement).value.trim();
+    const height = (document.getElementById('new-user-height') as HTMLInputElement).value.trim();
+    const size = (document.getElementById('new-user-size') as HTMLInputElement).value.trim();
+    const adminComments = (document.getElementById('new-user-admin-comments') as HTMLTextAreaElement).value.trim();
+    
+    try {
+        const formData = new FormData();
+        
+        // Only append non-empty values (backend will generate defaults for email/password if empty)
+        if (email) {
+            formData.append('email', email);
+        }
+        if (password) {
+            formData.append('password', password);
+        }
+        if (firstName) {
+            formData.append('firstName', firstName);
+        }
+        if (lastName) {
+            formData.append('lastName', lastName);
+        }
+        
+        formData.append('status', status);
+        
+        if (verificationImage) {
+            formData.append('verificationImage', verificationImage);
+        }
+        
+        if (age) {
+            formData.append('age', age);
+        }
+        
+        if (location) {
+            formData.append('location', location);
+        }
+        
+        if (height) {
+            formData.append('height', height);
+        }
+        
+        if (size) {
+            formData.append('size', size);
+        }
+        
+        if (adminComments) {
+            formData.append('adminComments', adminComments);
+        }
+        
+        const newUser = await adminApi.createUser(formData);
+        
+        const userName = (newUser.firstName && newUser.lastName) 
+            ? `${newUser.firstName} ${newUser.lastName}` 
+            : (newUser.firstName || newUser.lastName || 'User');
+        showMessage(`User "${userName}" created successfully! Email: ${newUser.email}`, 'success');
+        closeAddUserModal();
+        
+        // Reload users list
+        const activeFilter = document.querySelector('.filter-btn.active') as HTMLButtonElement;
+        const currentStatus = activeFilter?.getAttribute('data-status') || '';
+        await loadAllUsers(currentStatus || undefined);
+    } catch (error: any) {
+        console.error('Error creating user:', error);
+        const errorMessage = error.response?.data?.error || 
+                            error.response?.data?.message || 
+                            error.message || 
+                            'Failed to create user';
+        showMessage(`Failed to create user: ${errorMessage}`, 'error');
+    }
+});
+
 // Remove old add-space-btn handler - no longer needed
 
 // Create event form handler
@@ -980,6 +1219,58 @@ document.getElementById('create-event-form')?.addEventListener('submit', async (
 });
 
 // Save user details
+function checkUserDetailsChanges() {
+    if (!originalUserValues) return;
+    
+    const ageInput = document.getElementById('user-age') as HTMLInputElement;
+    const locationInput = document.getElementById('user-location') as HTMLInputElement;
+    const heightInput = document.getElementById('user-height') as HTMLInputElement;
+    const sizeInput = document.getElementById('user-size') as HTMLInputElement;
+    const adminCommentsInput = document.getElementById('user-admin-comments') as HTMLTextAreaElement;
+    
+    const currentAge = ageInput.value.trim() || null;
+    const currentLocation = locationInput.value.trim() || null;
+    const currentHeight = heightInput.value.trim() || null;
+    const currentSize = sizeInput.value.trim() || null;
+    const currentAdminComments = adminCommentsInput.value.trim() || null;
+    
+    // Compare current values with original values
+    const hasChanges = 
+        currentAge !== originalUserValues.age ||
+        currentLocation !== originalUserValues.location ||
+        currentHeight !== originalUserValues.height ||
+        currentSize !== originalUserValues.size ||
+        currentAdminComments !== originalUserValues.adminComments;
+    
+    const saveBtn = document.getElementById('save-user-details-btn') as HTMLButtonElement;
+    if (saveBtn) {
+        if (hasChanges) {
+            saveBtn.disabled = false;
+            saveBtn.style.opacity = '1';
+            saveBtn.style.cursor = 'pointer';
+        } else {
+            saveBtn.disabled = true;
+            saveBtn.style.opacity = '0.5';
+            saveBtn.style.cursor = 'not-allowed';
+        }
+    }
+}
+
+let changeListenersAttached = false;
+
+function attachUserDetailsChangeListeners() {
+    // Only attach listeners once
+    if (changeListenersAttached) return;
+    
+    document.getElementById('user-age')?.addEventListener('input', checkUserDetailsChanges);
+    document.getElementById('user-location')?.addEventListener('input', checkUserDetailsChanges);
+    document.getElementById('user-height')?.addEventListener('input', checkUserDetailsChanges);
+    document.getElementById('user-size')?.addEventListener('input', checkUserDetailsChanges);
+    document.getElementById('user-admin-comments')?.addEventListener('input', checkUserDetailsChanges);
+    
+    changeListenersAttached = true;
+}
+
 async function saveUserDetails() {
     const userIdToUse = currentReviewUserId || userId;
     if (!userIdToUse) {
@@ -1012,7 +1303,7 @@ async function saveUserDetails() {
     try {
         await adminApi.updateUser(parseInt(userIdToUse), updates);
         showMessage('User details updated successfully', 'success');
-        // Reload user details to reflect changes
+        // Reload user details to reflect changes (this will reset original values and disable button)
         await loadUserDetails(userIdToUse);
         // Reload users list to reflect changes
         loadAllUsers();
@@ -1030,6 +1321,25 @@ document.getElementById('approve-btn')?.addEventListener('click', approveUser);
 document.getElementById('reject-btn')?.addEventListener('click', rejectUser);
 document.getElementById('request-picture-btn')?.addEventListener('click', requestPicture);
 document.getElementById('save-user-details-btn')?.addEventListener('click', saveUserDetails);
+
+function convertUrlsToLinks(text: string): string {
+    // Regular expression to match URLs (http, https, www, or just domain names)
+    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s]*)/g;
+    
+    return text.replace(urlRegex, (url) => {
+        // Ensure URL has protocol
+        let href = url;
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            href = 'https://' + url;
+        }
+        
+        // Escape HTML in the URL to prevent XSS
+        const escapedUrl = url.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const escapedHref = href.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        
+        return `<a href="${escapedHref}" target="_blank" rel="noopener noreferrer" class="tooltip-link">${escapedUrl}</a>`;
+    });
+}
 
 function getStatusBadge(status: string): string {
     const upperStatus = status?.toUpperCase() || '';
