@@ -51,6 +51,42 @@ public class SpaceService {
     }
     
     @Transactional
+    public Space bookSpaceForUser(Long eventId, Long spaceId, User user) {
+        // Admin can book for any user, but still check if user exists
+        if (user == null) {
+            throw new RuntimeException("User not found");
+        }
+        
+        if (eventId == null) {
+            throw new IllegalArgumentException("Event ID cannot be null");
+        }
+        if (spaceId == null) {
+            throw new IllegalArgumentException("Space ID cannot be null");
+        }
+        
+        // Check if user already has a booking for this event
+        if (spaceRepository.findByUserId(user.getId()).stream()
+                .anyMatch(s -> s.getEvent().getId().equals(eventId))) {
+            throw new RuntimeException("User already has a booking for this event");
+        }
+        
+        // Verify event exists
+        if (!eventRepository.existsById(eventId)) {
+            throw new RuntimeException("Event not found");
+        }
+        
+        Space space = spaceRepository.findByEventIdAndId(eventId, spaceId)
+            .orElseThrow(() -> new RuntimeException("Space not found"));
+        
+        if (!space.isAvailable()) {
+            throw new RuntimeException("Space is already booked");
+        }
+        
+        space.setUser(user);
+        return spaceRepository.save(space);
+    }
+    
+    @Transactional
     public void cancelBooking(Long spaceId, User user) {
         if (spaceId == null) {
             throw new IllegalArgumentException("Space ID cannot be null");

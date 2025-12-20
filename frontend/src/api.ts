@@ -253,6 +253,15 @@ export const spaceTemplateApi = {
 };
 
 export const adminApi = {
+    bookSpaceForUser: async (eventId: number, spaceId: number, userEmail: string): Promise<{ message: string; spaceId: string; spaceName: string; userEmail: string }> => {
+        // Use URLSearchParams to ensure proper encoding
+        const params = new URLSearchParams();
+        params.append('eventId', eventId.toString());
+        params.append('spaceId', spaceId.toString());
+        params.append('userEmail', userEmail);
+        const response = await api.post(`/admin/users/spaces/book?${params.toString()}`, null);
+        return response.data;
+    },
     updateUser: async (userId: number, updates: { age?: number | null; location?: string | null; height?: string | null; size?: string | null; adminComments?: string | null }): Promise<UserDetailsDTO> => {
         const response = await api.put<UserDetailsDTO>(`/admin/users/${userId}`, updates);
         return response.data;

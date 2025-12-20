@@ -1004,13 +1004,9 @@ async function openEventBookingsModal(event: any) {
             return;
         }
         
-        // Filter booked spaces
+        // Separate booked and available spaces
         const bookedSpaces = fullEvent.spaces.filter((space: any) => space.bookedBy);
-        
-        if (bookedSpaces.length === 0) {
-            content.innerHTML = '<p style="color: #666; padding: 20px;">No spaces have been booked for this event yet.</p>';
-            return;
-        }
+        const availableSpaces = fullEvent.spaces.filter((space: any) => !space.bookedBy);
         
         // Fetch all users to get names
         const usersResponse = await axios.get(`${API_BASE_URL}/admin/users`, { headers });
@@ -1020,36 +1016,77 @@ async function openEventBookingsModal(event: any) {
             userMap.set(user.email, user);
         });
         
-        // Group by user email, storing space objects with color
-        const bookingsByUser = new Map<string, Array<{name: string, color: string}>>();
-        bookedSpaces.forEach((space: any) => {
-            const email = space.bookedBy;
-            if (!bookingsByUser.has(email)) {
-                bookingsByUser.set(email, []);
-            }
-            bookingsByUser.get(email)!.push({
-                name: space.name,
-                color: space.color
+        // Build HTML
+        let html = '';
+        
+        // Booked spaces section
+        if (bookedSpaces.length > 0) {
+            // Group by user email, storing space objects with color
+            const bookingsByUser = new Map<string, Array<{name: string, color: string, id: number}>>();
+            bookedSpaces.forEach((space: any) => {
+                const email = space.bookedBy;
+                if (!bookingsByUser.has(email)) {
+                    bookingsByUser.set(email, []);
+                }
+                bookingsByUser.get(email)!.push({
+                    name: space.name,
+                    color: space.color,
+                    id: space.id
+                });
             });
-        });
-        
-        // Build HTML table structure
-        let html = '<table style="width: 100%; border-collapse: collapse;">';
-        
-        bookingsByUser.forEach((spaces, email) => {
-            const user = userMap.get(email);
-            const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '';
             
-            // Create a row for each space booking
-            spaces.forEach((space: any) => {
+            html += '<h3 style="margin-top: 0; margin-bottom: 16px; color: #333;">Booked Spaces</h3>';
+            html += '<table style="width: 100%; border-collapse: collapse; margin-bottom: 32px;">';
+            
+            bookingsByUser.forEach((spaces, email) => {
+                const user = userMap.get(email);
+                const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '';
+                
+                // Create a row for each space booking
+                spaces.forEach((space: any) => {
+                    const colorClass = `color-${space.color.toLowerCase()}`;
+                    html += `
+                        <tr style="border-bottom: 1px solid #e0e0e0;">
+                            <td style="padding: 12px; vertical-align: top;">
+                                <div style="font-weight: 600; color: #333; font-size: 1.1rem; margin-bottom: 4px;">${userName || email}</div>
+                                ${userName ? `<div style="color: #666; font-size: 0.85rem;">${email}</div>` : ''}
+                            </td>
+                            <td style="padding: 12px; vertical-align: top;">
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    <tr>
+                                        <td style="padding: 0; text-align: right; font-size: 0.9rem; color: #333;">${space.name}</td>
+                                        <td style="padding: 0; padding-left: 12px; text-align: right; width: 24px;">
+                                            <div class="space-color ${colorClass}" style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid #333; margin-left: auto;"></div>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    `;
+                });
+            });
+            
+            html += '</table>';
+        }
+        
+        // Available spaces section
+        if (availableSpaces.length > 0) {
+            html += '<h3 style="margin-top: 0; margin-bottom: 16px; color: #333;">Available Spaces</h3>';
+            html += '<table style="width: 100%; border-collapse: collapse;">';
+            
+            availableSpaces.forEach((space: any) => {
                 const colorClass = `color-${space.color.toLowerCase()}`;
+                const bookingId = `booking-${space.id}`;
                 html += `
                     <tr style="border-bottom: 1px solid #e0e0e0;">
-                        <td style="padding: 12px; vertical-align: top;">
-                            <div style="font-weight: 600; color: #333; font-size: 1.1rem; margin-bottom: 4px;">${userName || email}</div>
-                            ${userName ? `<div style="color: #666; font-size: 0.85rem;">${email}</div>` : ''}
+                        <td style="padding: 12px; vertical-align: middle;">
+                            <input type="text" 
+                                   id="${bookingId}-email" 
+                                   placeholder="Enter user email" 
+                                   style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;"
+                                   data-space-id="${space.id}">
                         </td>
-                        <td style="padding: 12px; vertical-align: top;">
+                        <td style="padding: 12px; vertical-align: middle;">
                             <table style="width: 100%; border-collapse: collapse;">
                                 <tr>
                                     <td style="padding: 0; text-align: right; font-size: 0.9rem; color: #333;">${space.name}</td>
@@ -1059,13 +1096,65 @@ async function openEventBookingsModal(event: any) {
                                 </tr>
                             </table>
                         </td>
+                        <td style="padding: 12px; vertical-align: middle; width: 100px;">
+                            <button class="btn-book-space" 
+                                    data-event-id="${event.id}" 
+                                    data-space-id="${space.id}"
+                                    data-email-input="${bookingId}-email"
+                                    style="padding: 6px 12px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; width: 100%;">
+                                Book
+                            </button>
+                        </td>
                     </tr>
                 `;
             });
-        });
+            
+            html += '</table>';
+        }
         
-        html += '</table>';
+        if (bookedSpaces.length === 0 && availableSpaces.length === 0) {
+            html = '<p style="color: #666; padding: 20px;">No spaces available for this event.</p>';
+        }
+        
         content.innerHTML = html;
+        
+        // Add event listeners for book buttons
+        content.querySelectorAll('.btn-book-space').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const button = e.target as HTMLButtonElement;
+                const eventId = parseInt(button.getAttribute('data-event-id') || '0');
+                const spaceId = parseInt(button.getAttribute('data-space-id') || '0');
+                const emailInputId = button.getAttribute('data-email-input') || '';
+                const emailInput = document.getElementById(emailInputId) as HTMLInputElement;
+                
+                if (!emailInput) return;
+                
+                const userEmail = emailInput.value.trim();
+                if (!userEmail) {
+                    showMessage('Please enter a user email', 'error');
+                    return;
+                }
+                
+                button.disabled = true;
+                button.textContent = 'Booking...';
+                
+                try {
+                    await adminApi.bookSpaceForUser(eventId, spaceId, userEmail);
+                    showMessage('Space booked successfully', 'success');
+                    // Reload the modal
+                    await openEventBookingsModal(event);
+                } catch (error: any) {
+                    console.error('Error booking space:', error);
+                    const errorMessage = error.response?.data?.error || 
+                                        error.response?.data?.message || 
+                                        error.message || 
+                                        'Unknown error';
+                    showMessage(`Failed to book space: ${errorMessage}`, 'error');
+                    button.disabled = false;
+                    button.textContent = 'Book';
+                }
+            });
+        });
         
     } catch (error: any) {
         console.error('Error loading event bookings:', error);

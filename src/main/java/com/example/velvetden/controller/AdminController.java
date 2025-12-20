@@ -2,9 +2,11 @@ package com.example.velvetden.controller;
 
 import com.example.velvetden.dto.UserDetailsDTO;
 import com.example.velvetden.entity.User;
+import com.example.velvetden.entity.Space;
 import com.example.velvetden.repository.SpaceRepository;
 import com.example.velvetden.repository.UserRepository;
 import com.example.velvetden.service.FileStorageService;
+import com.example.velvetden.service.SpaceService;
 import com.example.velvetden.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -28,6 +30,7 @@ public class AdminController {
     private final SpaceRepository spaceRepository;
     private final UserService userService;
     private final FileStorageService fileStorageService;
+    private final SpaceService spaceService;
     
     @PostMapping("/{userId}/approve")
     public ResponseEntity<Map<String, Object>> approveUser(@PathVariable("userId") Long userId) {
@@ -342,6 +345,49 @@ public class AdminController {
             Map<String, Object> error = new HashMap<>();
             error.put("error", "Failed to create user: " + e.getMessage());
             return ResponseEntity.status(500).body(error);
+        }
+    }
+    
+    @PostMapping("/spaces/book")
+    public ResponseEntity<?> bookSpaceForUser(
+            @RequestParam("eventId") Long eventId,
+            @RequestParam("spaceId") Long spaceId,
+            @RequestParam("userEmail") String userEmail,
+            Authentication authentication) {
+        
+        try {
+            // Check if user is authenticated and is an admin
+            if (authentication == null || authentication.getPrincipal() == null) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("error", "Authentication required");
+                return ResponseEntity.status(403).body(error);
+            }
+            
+            User admin = (User) authentication.getPrincipal();
+            if (admin.getIsAdmin() == null || !admin.getIsAdmin()) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("error", "Admin access required");
+                return ResponseEntity.status(403).body(error);
+            }
+            
+            // Find user by email
+            User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + userEmail));
+            
+            // Book space for user
+            Space space = spaceService.bookSpaceForUser(eventId, spaceId, user);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Space booked successfully for user");
+            response.put("spaceId", space.getId().toString());
+            response.put("spaceName", space.getName());
+            response.put("userEmail", userEmail);
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
         }
     }
     
