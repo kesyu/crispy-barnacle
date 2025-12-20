@@ -895,6 +895,7 @@ async function loadAllEvents() {
             
             const eventCard = document.createElement('div');
             eventCard.className = 'event-card';
+            eventCard.style.cursor = 'pointer';
             eventCard.innerHTML = `
                 <div class="event-card-header">
                     <div>
@@ -913,10 +914,22 @@ async function loadAllEvents() {
             
             eventsList.appendChild(eventCard);
             
+            // Add click handler to open booked users modal
+            eventCard.addEventListener('click', (e) => {
+                // Don't open modal if clicking on cancel button
+                if ((e.target as HTMLElement).closest('.cancel-event-btn')) {
+                    return;
+                }
+                openEventBookingsModal(event);
+            });
+            
             // Add cancel button event listener
             if (cancelButton) {
                 const cancelBtn = eventCard.querySelector('.cancel-event-btn');
-                cancelBtn?.addEventListener('click', () => cancelEvent(event.id));
+                cancelBtn?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    cancelEvent(event.id);
+                });
             }
         });
     } catch (error: any) {
@@ -950,6 +963,135 @@ async function cancelEvent(eventId: number) {
         showMessage(`Failed to cancel event: ${errorMessage}`, 'error');
     }
 }
+
+// Event bookings modal
+async function openEventBookingsModal(event: any) {
+    const modal = document.getElementById('event-bookings-modal');
+    const content = document.getElementById('event-bookings-content');
+    const title = document.getElementById('event-bookings-title');
+    
+    if (!modal || !content || !title) return;
+    
+    // Set title
+    const eventDate = new Date(event.dateTime);
+    const formattedDate = eventDate.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+    });
+    title.textContent = `Bookings - ${event.city} (${formattedDate})`;
+    
+    // Show loading
+    content.innerHTML = '<p>Loading bookings...</p>';
+    modal.classList.add('active');
+    
+    try {
+        // Fetch full event details with spaces
+        const token = localStorage.getItem('token');
+        const headers: any = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const response = await axios.get(`${API_BASE_URL}/events/all`, { headers });
+        const events = response.data;
+        const fullEvent = events.find((e: any) => e.id === event.id);
+        
+        if (!fullEvent || !fullEvent.spaces) {
+            content.innerHTML = '<p>No booking information available.</p>';
+            return;
+        }
+        
+        // Filter booked spaces
+        const bookedSpaces = fullEvent.spaces.filter((space: any) => space.bookedBy);
+        
+        if (bookedSpaces.length === 0) {
+            content.innerHTML = '<p style="color: #666; padding: 20px;">No spaces have been booked for this event yet.</p>';
+            return;
+        }
+        
+        // Fetch all users to get names
+        const usersResponse = await axios.get(`${API_BASE_URL}/admin/users`, { headers });
+        const allUsers = usersResponse.data;
+        const userMap = new Map<string, any>();
+        allUsers.forEach((user: any) => {
+            userMap.set(user.email, user);
+        });
+        
+        // Group by user email, storing space objects with color
+        const bookingsByUser = new Map<string, Array<{name: string, color: string}>>();
+        bookedSpaces.forEach((space: any) => {
+            const email = space.bookedBy;
+            if (!bookingsByUser.has(email)) {
+                bookingsByUser.set(email, []);
+            }
+            bookingsByUser.get(email)!.push({
+                name: space.name,
+                color: space.color
+            });
+        });
+        
+        // Build HTML table structure
+        let html = '<table style="width: 100%; border-collapse: collapse;">';
+        
+        bookingsByUser.forEach((spaces, email) => {
+            const user = userMap.get(email);
+            const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '';
+            
+            // Create a row for each space booking
+            spaces.forEach((space: any) => {
+                const colorClass = `color-${space.color.toLowerCase()}`;
+                html += `
+                    <tr style="border-bottom: 1px solid #e0e0e0;">
+                        <td style="padding: 12px; vertical-align: top;">
+                            <div style="font-weight: 600; color: #333; font-size: 1.1rem; margin-bottom: 4px;">${userName || email}</div>
+                            ${userName ? `<div style="color: #666; font-size: 0.85rem;">${email}</div>` : ''}
+                        </td>
+                        <td style="padding: 12px; vertical-align: top;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 0; text-align: right; font-size: 0.9rem; color: #333;">${space.name}</td>
+                                    <td style="padding: 0; padding-left: 12px; text-align: right; width: 24px;">
+                                        <div class="space-color ${colorClass}" style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid #333; margin-left: auto;"></div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                `;
+            });
+        });
+        
+        html += '</table>';
+        content.innerHTML = html;
+        
+    } catch (error: any) {
+        console.error('Error loading event bookings:', error);
+        const errorMessage = error.response?.data?.error || 
+                            error.response?.data?.message || 
+                            error.message || 
+                            'Unknown error';
+        content.innerHTML = `<p style="color: #f44336;">Failed to load bookings: ${errorMessage}</p>`;
+    }
+}
+
+function closeEventBookingsModal() {
+    const modal = document.getElementById('event-bookings-modal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+// Event bookings modal handlers
+document.getElementById('close-event-bookings-modal')?.addEventListener('click', closeEventBookingsModal);
+
+document.getElementById('event-bookings-modal')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('event-bookings-modal')) {
+        closeEventBookingsModal();
+    }
+});
 
 // Add event modal handlers
 async function openAddEventModal() {
