@@ -1079,12 +1079,20 @@ async function openEventBookingsModal(event: any) {
                 const bookingId = `booking-${space.id}`;
                 html += `
                     <tr style="border-bottom: 1px solid #e0e0e0;">
-                        <td style="padding: 12px; vertical-align: middle;">
-                            <input type="text" 
-                                   id="${bookingId}-email" 
-                                   placeholder="Enter user email" 
-                                   style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;"
-                                   data-space-id="${space.id}">
+                        <td style="padding: 12px; vertical-align: middle; position: relative;">
+                            <div style="position: relative;">
+                                <input type="text" 
+                                       id="${bookingId}-search" 
+                                       placeholder="Search user by name or email..." 
+                                       autocomplete="off"
+                                       style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;"
+                                       data-space-id="${space.id}"
+                                       data-selected-email="">
+                                <div id="${bookingId}-dropdown" 
+                                     class="user-search-dropdown" 
+                                     style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 200px; overflow-y: auto; z-index: 1000; margin-top: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                </div>
+                            </div>
                         </td>
                         <td style="padding: 12px; vertical-align: middle;">
                             <table style="width: 100%; border-collapse: collapse;">
@@ -1100,7 +1108,7 @@ async function openEventBookingsModal(event: any) {
                             <button class="btn-book-space" 
                                     data-event-id="${event.id}" 
                                     data-space-id="${space.id}"
-                                    data-email-input="${bookingId}-email"
+                                    data-search-input="${bookingId}-search"
                                     style="padding: 6px 12px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; width: 100%;">
                                 Book
                             </button>
@@ -1118,20 +1126,105 @@ async function openEventBookingsModal(event: any) {
         
         content.innerHTML = html;
         
+        // Setup autocomplete for each search input
+        availableSpaces.forEach((space: any) => {
+            const bookingId = `booking-${space.id}`;
+            const searchInput = document.getElementById(`${bookingId}-search`) as HTMLInputElement;
+            const dropdown = document.getElementById(`${bookingId}-dropdown`);
+            
+            if (!searchInput || !dropdown) return;
+            
+            // Filter users as admin types
+            searchInput.addEventListener('input', () => {
+                const searchText = searchInput.value.trim().toLowerCase();
+                const selectedEmail = searchInput.getAttribute('data-selected-email') || '';
+                
+                if (searchText.length === 0) {
+                    dropdown.style.display = 'none';
+                    searchInput.setAttribute('data-selected-email', '');
+                    return;
+                }
+                
+                // Filter users by name or email
+                const filteredUsers = allUsers.filter((user: any) => {
+                    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.toLowerCase();
+                    const email = (user.email || '').toLowerCase();
+                    return fullName.includes(searchText) || email.includes(searchText);
+                }).slice(0, 10); // Limit to 10 results
+                
+                if (filteredUsers.length === 0) {
+                    dropdown.innerHTML = '<div style="padding: 12px; color: #666; font-size: 0.9rem;">No users found</div>';
+                    dropdown.style.display = 'block';
+                    return;
+                }
+                
+                // Build dropdown HTML
+                let dropdownHTML = '';
+                filteredUsers.forEach((user: any) => {
+                    const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+                    const isSelected = user.email === selectedEmail;
+                    dropdownHTML += `
+                        <div class="user-search-option" 
+                             data-email="${user.email}"
+                             data-name="${userName}"
+                             style="padding: 10px; cursor: pointer; border-bottom: 1px solid #f0f0f0; ${isSelected ? 'background: #f0f8ff;' : ''}"
+                             onmouseover="this.style.background='#f5f5f5'"
+                             onmouseout="this.style.background='${isSelected ? '#f0f8ff' : 'white'}'">
+                            <div style="font-weight: 600; color: #333; font-size: 0.9rem; margin-bottom: 2px;">${userName}</div>
+                            <div style="color: #666; font-size: 0.85rem;">${user.email}</div>
+                        </div>
+                    `;
+                });
+                
+                dropdown.innerHTML = dropdownHTML;
+                dropdown.style.display = 'block';
+                
+                // Add click handlers to options
+                dropdown.querySelectorAll('.user-search-option').forEach(option => {
+                    option.addEventListener('click', () => {
+                        const email = option.getAttribute('data-email') || '';
+                        const name = option.getAttribute('data-name') || '';
+                        searchInput.value = name;
+                        searchInput.setAttribute('data-selected-email', email);
+                        dropdown.style.display = 'none';
+                    });
+                });
+            });
+            
+            // Close dropdown when clicking outside
+            const closeDropdownHandler = (e: MouseEvent) => {
+                const target = e.target as Node;
+                if (!searchInput.contains(target) && !dropdown.contains(target)) {
+                    dropdown.style.display = 'none';
+                }
+            };
+            // Use setTimeout to avoid immediate closure when clicking the input
+            setTimeout(() => {
+                document.addEventListener('click', closeDropdownHandler);
+            }, 100);
+            
+            // Handle keyboard navigation
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    dropdown.style.display = 'none';
+                }
+            });
+        });
+        
         // Add event listeners for book buttons
         content.querySelectorAll('.btn-book-space').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const button = e.target as HTMLButtonElement;
                 const eventId = parseInt(button.getAttribute('data-event-id') || '0');
                 const spaceId = parseInt(button.getAttribute('data-space-id') || '0');
-                const emailInputId = button.getAttribute('data-email-input') || '';
-                const emailInput = document.getElementById(emailInputId) as HTMLInputElement;
+                const searchInputId = button.getAttribute('data-search-input') || '';
+                const searchInput = document.getElementById(searchInputId) as HTMLInputElement;
                 
-                if (!emailInput) return;
+                if (!searchInput) return;
                 
-                const userEmail = emailInput.value.trim();
+                const userEmail = searchInput.getAttribute('data-selected-email') || '';
                 if (!userEmail) {
-                    showMessage('Please enter a user email', 'error');
+                    showMessage('Please select a user from the dropdown', 'error');
                     return;
                 }
                 
