@@ -120,6 +120,25 @@ public class SpaceService {
             throw new RuntimeException("Failed to cancel booking. Please try again.");
         }
     }
+    
+    @Transactional
+    public void cancelBookingByAdmin(Long spaceId) {
+        if (spaceId == null) {
+            throw new IllegalArgumentException("Space ID cannot be null");
+        }
+        
+        // Verify space exists and is booked
+        Space space = spaceRepository.findByIdWithUser(spaceId)
+            .orElseThrow(() -> new RuntimeException("Space not found"));
+        
+        if (space.getUser() == null) {
+            throw new RuntimeException("Space is not currently booked.");
+        }
+        
+        // Admin can cancel any booking - just set user to null
+        space.setUser(null);
+        spaceRepository.save(space);
+    }
 }
 
 

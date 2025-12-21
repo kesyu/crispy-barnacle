@@ -74,6 +74,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/events/*/cancel").authenticated() // Cancel event requires authentication
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/admin/users/spaces/book").authenticated() // Book space for user requires authentication - MUST come before general /api/admin/** rule
+                .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/admin/users/spaces/*/booking").authenticated() // Cancel booking by admin requires authentication
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/admin/users").authenticated() // Create user requires authentication - MUST come before general /api/admin/** rule
                 .requestMatchers("/api/events/**", "/api/registration/**", "/api/auth/**").permitAll()
                 .requestMatchers("/api/admin/**").permitAll() // Admin endpoints are public (admin page handles auth) - must come AFTER specific authenticated rules

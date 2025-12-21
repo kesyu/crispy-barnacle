@@ -432,6 +432,40 @@ public class AdminController {
         }
     }
     
+    @DeleteMapping("/spaces/{spaceId}/booking")
+    public ResponseEntity<?> cancelBookingByAdmin(
+            @PathVariable Long spaceId,
+            Authentication authentication) {
+        
+        try {
+            // Check if user is authenticated and is an admin
+            if (authentication == null || authentication.getPrincipal() == null) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("error", "Authentication required");
+                return ResponseEntity.status(403).body(error);
+            }
+            
+            User admin = (User) authentication.getPrincipal();
+            if (admin.getIsAdmin() == null || !admin.getIsAdmin()) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("error", "Admin access required");
+                return ResponseEntity.status(403).body(error);
+            }
+            
+            // Cancel the booking
+            spaceService.cancelBookingByAdmin(spaceId);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Booking removed successfully");
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
+    
     private String generateRandomEmail() {
         // Generate a unique random email like: user1234567890123@temp.local
         // Keep generating until we find one that doesn't exist

@@ -1062,6 +1062,8 @@ async function openEventBookingsModal(event: any) {
             
             html += '<h3 style="margin-top: 0; margin-bottom: 16px; color: #333;">Booked Spaces</h3>';
             html += '<table style="width: 100%; border-collapse: collapse; margin-bottom: 32px;">';
+            html += '<thead><tr><th style="padding: 12px; text-align: left;">User</th><th style="padding: 12px; text-align: right;">Space</th><th style="padding: 12px; width: 100px;">Action</th></tr></thead>';
+            html += '<tbody>';
             
             bookingsByUser.forEach((spaces, email) => {
                 const user = userMap.get(email);
@@ -1086,12 +1088,19 @@ async function openEventBookingsModal(event: any) {
                                     </tr>
                                 </table>
                             </td>
+                            <td style="padding: 12px; vertical-align: middle; width: 100px;">
+                                <button class="btn-remove-booking" 
+                                        data-space-id="${space.id}"
+                                        style="padding: 6px 12px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; width: 100%;">
+                                    Remove
+                                </button>
+                            </td>
                         </tr>
                     `;
                 });
             });
             
-            html += '</table>';
+            html += '</tbody></table>';
         }
         
         // Available spaces section
@@ -1150,6 +1159,39 @@ async function openEventBookingsModal(event: any) {
         }
         
         content.innerHTML = html;
+        
+        // Add event listeners for remove booking buttons
+        content.querySelectorAll('.btn-remove-booking').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const button = e.target as HTMLButtonElement;
+                const spaceId = parseInt(button.getAttribute('data-space-id') || '0');
+                
+                if (!spaceId) return;
+                
+                if (!confirm('Are you sure you want to remove this booking?')) {
+                    return;
+                }
+                
+                button.disabled = true;
+                button.textContent = 'Removing...';
+                
+                try {
+                    await adminApi.cancelBooking(spaceId);
+                    showMessage('Booking removed successfully', 'success');
+                    // Reload the modal
+                    await openEventBookingsModal(event);
+                } catch (error: any) {
+                    console.error('Error removing booking:', error);
+                    const errorMessage = error.response?.data?.error || 
+                                        error.response?.data?.message || 
+                                        error.message || 
+                                        'Unknown error';
+                    showMessage(`Failed to remove booking: ${errorMessage}`, 'error');
+                    button.disabled = false;
+                    button.textContent = 'Remove';
+                }
+            });
+        });
         
         // Setup autocomplete for each search input
         availableSpaces.forEach((space: any) => {
