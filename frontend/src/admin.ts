@@ -503,15 +503,24 @@ document.getElementById('review-modal')?.addEventListener('click', (e) => {
 });
 
 // Load all users
-async function loadAllUsers(statusFilter?: string) {
+async function loadAllUsers(statusFilter?: string, hasActiveBooking?: boolean) {
     const container = document.getElementById('users-list-container');
     if (!container) return;
     
     container.innerHTML = '<p>Loading users...</p>';
     
     try {
-        const url = statusFilter 
-            ? `${API_BASE_URL}/admin/users?status=${statusFilter}`
+        const params = new URLSearchParams();
+        if (statusFilter) {
+            params.append('status', statusFilter);
+        }
+        // Always send hasActiveBooking parameter - 'true' if checked, don't send if unchecked
+        if (hasActiveBooking === true) {
+            params.append('hasActiveBooking', 'true');
+        }
+        
+        const url = params.toString() 
+            ? `${API_BASE_URL}/admin/users?${params.toString()}`
             : `${API_BASE_URL}/admin/users`;
         
         const token = localStorage.getItem('token');
@@ -836,12 +845,28 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
         target.classList.add('active');
         
-        // Apply both status filter and search filter
-        const searchInput = document.getElementById('user-search-input') as HTMLInputElement;
-        const searchText = searchInput?.value || '';
-        filterUsersBySearch(searchText);
+        // Get active booking filter state
+        const activeBookingCheckbox = document.getElementById('filter-active-booking') as HTMLInputElement;
+        const hasActiveBooking = activeBookingCheckbox?.checked || false;
+        
+        // Load users with filters
+        loadAllUsers(status || undefined, hasActiveBooking);
     });
 });
+
+// Active booking checkbox
+const activeBookingCheckbox = document.getElementById('filter-active-booking');
+if (activeBookingCheckbox) {
+    activeBookingCheckbox.addEventListener('change', () => {
+        // Get current status filter
+        const activeFilter = document.querySelector('.filter-btn.active') as HTMLButtonElement;
+        const status = activeFilter?.getAttribute('data-status') || '';
+        const hasActiveBooking = (activeBookingCheckbox as HTMLInputElement).checked;
+        
+        // Reload users with updated filters
+        loadAllUsers(status || undefined, hasActiveBooking);
+    });
+}
 
 // Load all events
 async function loadAllEvents() {

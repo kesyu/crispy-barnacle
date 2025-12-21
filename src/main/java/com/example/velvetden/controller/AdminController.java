@@ -3,6 +3,7 @@ package com.example.velvetden.controller;
 import com.example.velvetden.dto.UserDetailsDTO;
 import com.example.velvetden.entity.User;
 import com.example.velvetden.entity.Space;
+import com.example.velvetden.entity.Event;
 import com.example.velvetden.repository.SpaceRepository;
 import com.example.velvetden.repository.UserRepository;
 import com.example.velvetden.service.FileStorageService;
@@ -15,6 +16,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -102,22 +104,61 @@ public class AdminController {
     }
     
     @GetMapping
-    public ResponseEntity<?> getAllUsers(@RequestParam(required = false) String status) {
+    public ResponseEntity<?> getAllUsers(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String hasActiveBooking) {
         try {
-            List<User> users;
+            List<User> users = userRepository.findAll();
             
+            // Filter by active booking first (users with bookings in upcoming events)
+            // Parse hasActiveBooking as boolean (handles "true", "false", or null)
+            boolean filterByActiveBooking = "true".equalsIgnoreCase(hasActiveBooking);
+            
+            if (filterByActiveBooking) {
+                LocalDateTime now = LocalDateTime.now();
+                users = users.stream()
+                    .filter(user -> {
+                        // Get all spaces booked by this user
+                        List<Space> userSpaces = spaceRepository.findByUserId(user.getId());
+                        
+                        // If user has no bookings at all, exclude them
+                        if (userSpaces == null || userSpaces.isEmpty()) {
+                            return false;
+                        }
+                        
+                        // Check if any space is booked by this user in an upcoming, non-cancelled event
+                        return userSpaces.stream()
+                            .anyMatch(space -> {
+                                // Double-check that the space is actually booked by this user
+                                if (space.getUser() == null) {
+                                    return false;
+                                }
+                                if (!space.getUser().getId().equals(user.getId())) {
+                                    return false;
+                                }
+                                
+                                // Check if the event is upcoming and not cancelled
+                                Event event = space.getEvent();
+                                if (event == null) {
+                                    return false;
+                                }
+                                
+                                return event.getDateTime().isAfter(now) && !event.isCancelled();
+                            });
+                    })
+                    .collect(Collectors.toList());
+            }
+            
+            // Then filter by status if provided
             if (status != null && !status.isEmpty()) {
                 try {
                     User.UserStatus userStatus = User.UserStatus.valueOf(status.toUpperCase());
-                    users = userRepository.findAll().stream()
+                    users = users.stream()
                         .filter(user -> user.getStatus() == userStatus)
                         .collect(Collectors.toList());
                 } catch (IllegalArgumentException e) {
-                    // Invalid status, return all users
-                    users = userRepository.findAll();
+                    // Invalid status, keep current filtered list
                 }
-            } else {
-                users = userRepository.findAll();
             }
             
             List<UserDetailsDTO> userDTOs = users.stream().map(user -> {
